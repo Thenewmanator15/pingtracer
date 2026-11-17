@@ -44,6 +44,9 @@
 			this.nudPingTimeoutRedLineHeight = new System.Windows.Forms.NumericUpDown();
 			this.label6 = new System.Windows.Forms.Label();
 			this.label7 = new System.Windows.Forms.Label();
+			this.nudPingPayloadSize = new System.Windows.Forms.NumericUpDown();
+			this.label8 = new System.Windows.Forms.Label();
+			this.label9 = new System.Windows.Forms.Label();
 			this.label4 = new System.Windows.Forms.Label();
 			this.txtCustomTimeString = new System.Windows.Forms.TextBox();
 			this.customTimeStringHelp = new System.Windows.Forms.LinkLabel();
@@ -57,6 +60,7 @@
 			((System.ComponentModel.ISupportInitialize)(this.nudPingResponsesToCache)).BeginInit();
 			((System.ComponentModel.ISupportInitialize)(this.nudGraphScrollMultiplier)).BeginInit();
 			((System.ComponentModel.ISupportInitialize)(this.nudPingTimeoutRedLineHeight)).BeginInit();
+			((System.ComponentModel.ISupportInitialize)(this.nudPingPayloadSize)).BeginInit();
 			this.groupBoxFormMargins.SuspendLayout();
 			((System.ComponentModel.ISupportInitialize)(this.nudBottomMargin)).BeginInit();
 			((System.ComponentModel.ISupportInitialize)(this.nudRightMargin)).BeginInit();
@@ -271,9 +275,51 @@
 			this.toolTip1.SetToolTip(this.label7, "When a ping times out (gets no response), a red line is drawn \r\nup to this many p" +
         "ixels tall in the graph. You can reduce this \r\nvalue to shrink the line that is " +
         "drawn.");
-			// 
+			//
+			// nudPingPayloadSize
+			//
+			this.nudPingPayloadSize.Location = new System.Drawing.Point(160, 283);
+			this.nudPingPayloadSize.Maximum = new decimal(new int[] {
+            65500,
+            0,
+            0,
+            0});
+			this.nudPingPayloadSize.Name = "nudPingPayloadSize";
+			this.nudPingPayloadSize.Size = new System.Drawing.Size(64, 20);
+			this.nudPingPayloadSize.TabIndex = 24;
+			this.toolTip1.SetToolTip(this.nudPingPayloadSize, "Size in bytes of the payload sent with each ping. 32 is the \r\nWindows default. La" +
+        "rger payloads can reveal problems that \r\nsmall pings do not, but some hosts refu" +
+        "se to answer them.");
+			this.nudPingPayloadSize.Value = new decimal(new int[] {
+            32,
+            0,
+            0,
+            0});
+			this.nudPingPayloadSize.ValueChanged += new System.EventHandler(this.nudPingPayloadSize_ValueChanged);
+			//
+			// label8
+			//
+			this.label8.AutoSize = true;
+			this.label8.Location = new System.Drawing.Point(12, 285);
+			this.label8.Name = "label8";
+			this.label8.Size = new System.Drawing.Size(98, 13);
+			this.label8.TabIndex = 25;
+			this.label8.Text = "Ping payload size:";
+			this.toolTip1.SetToolTip(this.label8, "Size in bytes of the payload sent with each ping. 32 is the \r\nWindows default. La" +
+        "rger payloads can reveal problems that \r\nsmall pings do not, but some hosts refu" +
+        "se to answer them.");
+			//
+			// label9
+			//
+			this.label9.AutoSize = true;
+			this.label9.Location = new System.Drawing.Point(232, 285);
+			this.label9.Name = "label9";
+			this.label9.Size = new System.Drawing.Size(38, 13);
+			this.label9.TabIndex = 26;
+			this.label9.Text = "(bytes)";
+			//
 			// label4
-			// 
+			//
 			this.label4.AutoSize = true;
 			this.label4.Location = new System.Drawing.Point(12, 234);
 			this.label4.Name = "label4";
@@ -320,7 +366,7 @@
 			this.groupBoxFormMargins.Controls.Add(this.nudTopMargin);
 			this.groupBoxFormMargins.Controls.Add(this.label5);
 			this.groupBoxFormMargins.Controls.Add(this.panel1);
-			this.groupBoxFormMargins.Location = new System.Drawing.Point(12, 277);
+			this.groupBoxFormMargins.Location = new System.Drawing.Point(12, 309);
 			this.groupBoxFormMargins.Name = "groupBoxFormMargins";
 			this.groupBoxFormMargins.Size = new System.Drawing.Size(346, 131);
 			this.groupBoxFormMargins.TabIndex = 20;
@@ -420,7 +466,10 @@
 			// 
 			this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
 			this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-			this.ClientSize = new System.Drawing.Size(370, 415);
+			this.ClientSize = new System.Drawing.Size(370, 447);
+			this.Controls.Add(this.label9);
+			this.Controls.Add(this.nudPingPayloadSize);
+			this.Controls.Add(this.label8);
 			this.Controls.Add(this.label7);
 			this.Controls.Add(this.nudPingTimeoutRedLineHeight);
 			this.Controls.Add(this.label6);
@@ -444,6 +493,7 @@
 			((System.ComponentModel.ISupportInitialize)(this.nudPingResponsesToCache)).EndInit();
 			((System.ComponentModel.ISupportInitialize)(this.nudGraphScrollMultiplier)).EndInit();
 			((System.ComponentModel.ISupportInitialize)(this.nudPingTimeoutRedLineHeight)).EndInit();
+			((System.ComponentModel.ISupportInitialize)(this.nudPingPayloadSize)).EndInit();
 			this.groupBoxFormMargins.ResumeLayout(false);
 			((System.ComponentModel.ISupportInitialize)(this.nudBottomMargin)).EndInit();
 			((System.ComponentModel.ISupportInitialize)(this.nudRightMargin)).EndInit();
@@ -480,5 +530,8 @@
 		private System.Windows.Forms.NumericUpDown nudPingTimeoutRedLineHeight;
 		private System.Windows.Forms.Label label6;
 		private System.Windows.Forms.Label label7;
+		private System.Windows.Forms.NumericUpDown nudPingPayloadSize;
+		private System.Windows.Forms.Label label8;
+		private System.Windows.Forms.Label label9;
 	}
 }

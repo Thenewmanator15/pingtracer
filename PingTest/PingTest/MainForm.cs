@@ -1398,6 +1398,16 @@ namespace PingTracer
 
 		#region Log Messages
 
+		private void mi_NetworkTests_Click(object sender, EventArgs e)
+		{
+			PingConfiguration cfg = currentConfiguration;
+			string host = cfg != null && cfg.hosts != null && cfg.hosts.Count > 0 ? cfg.hosts[0].hostname : null;
+			int timeoutMs = cfg != null ? cfg.GetPingTimeoutMs() : 5000;
+			NetworkTestsForm form = new NetworkTestsForm(host, timeoutMs, cfg == null || cfg.GetPreferIPv4());
+			form.Icon = this.Icon;
+			form.Show(this);
+		}
+
 		private void mi_OutputLog_Click(object sender, EventArgs e)
 		{
 			ShowLogMessagesForm();

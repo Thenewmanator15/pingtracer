@@ -46,6 +46,7 @@ namespace PingTracer
 			this.menuItem1 = new System.Windows.Forms.MenuItem();
 			this.mi_snapshotGraphs = new System.Windows.Forms.MenuItem();
 			this.mi_exportCsv = new System.Windows.Forms.MenuItem();
+			this.mi_NetworkTests = new System.Windows.Forms.MenuItem();
 			this.menuItem4 = new System.Windows.Forms.MenuItem();
 			this.mi_Options = new System.Windows.Forms.MenuItem();
 			this.mi_OutputLog = new System.Windows.Forms.MenuItem();
@@ -210,6 +211,7 @@ namespace PingTracer
 			this.menuItem4.MenuItems.AddRange(new System.Windows.Forms.MenuItem[] {
             this.mi_Options,
             this.mi_OutputLog,
+            this.mi_NetworkTests,
             this.menuItem_OpenSettingsFolder,
             this.menuItem_CommandLineArgs,
             this.menuItem_resetWindowSize});
@@ -226,22 +228,28 @@ namespace PingTracer
 			this.mi_OutputLog.Index = 1;
 			this.mi_OutputLog.Text = "&Log Messages";
 			this.mi_OutputLog.Click += new System.EventHandler(this.mi_OutputLog_Click);
-			// 
+			//
+			// mi_NetworkTests
+			//
+			this.mi_NetworkTests.Index = 2;
+			this.mi_NetworkTests.Text = "&Network Tests...";
+			this.mi_NetworkTests.Click += new System.EventHandler(this.mi_NetworkTests_Click);
+			//
 			// menuItem_OpenSettingsFolder
-			// 
-			this.menuItem_OpenSettingsFolder.Index = 2;
+			//
+			this.menuItem_OpenSettingsFolder.Index = 3;
 			this.menuItem_OpenSettingsFolder.Text = "Open &AppData Folder";
 			this.menuItem_OpenSettingsFolder.Click += new System.EventHandler(this.menuItem_OpenSettingsFolder_Click);
 			// 
 			// menuItem_CommandLineArgs
 			// 
-			this.menuItem_CommandLineArgs.Index = 3;
+			this.menuItem_CommandLineArgs.Index = 4;
 			this.menuItem_CommandLineArgs.Text = "&Command Line Args";
 			this.menuItem_CommandLineArgs.Click += new System.EventHandler(this.menuItem_CommandLineArgs_Click);
 			// 
 			// menuItem_resetWindowSize
 			// 
-			this.menuItem_resetWindowSize.Index = 4;
+			this.menuItem_resetWindowSize.Index = 5;
 			this.menuItem_resetWindowSize.Text = "&Reset Window Size";
 			this.menuItem_resetWindowSize.Click += new System.EventHandler(this.menuItem_resetWindowSize_Click);
 			// 
@@ -321,6 +329,7 @@ namespace PingTracer
 		private System.Windows.Forms.MenuItem menuItem1;
 		private System.Windows.Forms.MenuItem mi_snapshotGraphs;
 		private System.Windows.Forms.MenuItem mi_exportCsv;
+		private System.Windows.Forms.MenuItem mi_NetworkTests;
 		private System.Windows.Forms.MenuItem menuItem4;
 		private System.Windows.Forms.MenuItem mi_Options;
 		private System.Windows.Forms.MenuItem mi_OutputLog;

@@ -260,10 +260,14 @@ namespace PingTracer
 			return outages;
 		}
 		/// <summary>
-		/// Header row matching the columns written by <see cref="WriteCsvRows"/>.  Sent and Received are local times to the microsecond; RoundTripMs is the operating system's figure in whole milliseconds; MeasuredMs is Received minus Sent as timed by this program.
+		/// Header row matching the columns written by <see cref="WriteCsvRows"/>.  Sent and Received are local times to the microsecond; RoundTripMs is the operating system's figure in whole milliseconds; MeasuredMs is Received minus Sent as timed by this program; SentData and ReceivedData are the ping payload in hexadecimal.
 		/// </summary>
-		public const string CsvHeader = "Host,Sent,Received,Result,RoundTripMs,MeasuredMs";
+		public const string CsvHeader = "Host,Sent,Received,Result,RoundTripMs,MeasuredMs,PayloadBytes,SentData,ReceivedData";
 		private const string csvTimeFormat = "yyyy-MM-dd HH:mm:ss.ffffff";
+		/// <summary>
+		/// How many bytes of the payload are written in the SentData and ReceivedData columns when the reply matched what was sent.  A mismatched ping is always written in full.
+		/// </summary>
+		private const int csvDataBytes = 32;
 		/// <summary>
 		/// Writes every completed ping currently held in the buffer, oldest first, as CSV rows (see <see cref="CsvHeader"/>).  Does not write a header row.
 		/// </summary>
@@ -279,6 +283,10 @@ namespace PingTracer
 			string hostColumn = "\"" + DisplayName.Replace("\"", "\"\"") + "\",";
 			System.Globalization.CultureInfo invariant = System.Globalization.CultureInfo.InvariantCulture;
 			int written = 0;
+			byte[] sentData = null;
+			byte sentPattern = 0;
+			int sentSeed = 0;
+			bool randomPayload = false;
 			for (long n = newest + 1 - total; n <= newest; n++)
 			{
 				PingLog p = buffer[n % buffer.Length];
@@ -305,6 +313,30 @@ namespace PingTracer
 					writer.Write(p.result.ToString());
 					writer.Write(",,");
 				}
+
+				// PayloadBytes, SentData, ReceivedData
+				writer.Write(',');
+				if (p.payloadSize >= 0)
+				{
+					// The payload is rebuilt from what was recorded about it rather than kept in memory for every ping.  Consecutive pings usually share one.
+					if (sentData == null || sentPattern != p.payloadPattern || sentData.Length != p.payloadSize || (randomPayload && sentSeed != p.payloadSeed))
+					{
+						sentPattern = p.payloadPattern;
+						sentSeed = p.payloadSeed;
+						randomPayload = PingTracer.Util.PingPayload.ChangesEveryRound(PingTracer.Util.PingPayload.FromSetting(sentPattern));
+						sentData = PingTracer.Util.PingPayload.Create(PingTracer.Util.PingPayload.FromSetting(sentPattern), p.payloadSize, sentSeed);
+					}
+					// Data is written in full when the reply differed, so the difference can be found.  Otherwise the start is enough to identify the packet.
+					int limit = p.dataMismatch ? int.MaxValue : csvDataBytes;
+					writer.Write(p.payloadSize.ToString(invariant));
+					writer.Write(',');
+					PingTracer.Util.PingPayload.WriteHex(writer, sentData, limit);
+					writer.Write(',');
+					if (success)
+						PingTracer.Util.PingPayload.WriteHex(writer, p.dataMismatch ? p.receivedData : sentData, limit);
+				}
+				else
+					writer.Write(",,");
 				writer.WriteLine();
 				written++;
 			}

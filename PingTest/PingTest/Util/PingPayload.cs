@@ -48,8 +48,8 @@ namespace PingTracer.Util
 		/// </summary>
 		/// <param name="pattern">What to fill it with.</param>
 		/// <param name="size">Size in bytes.</param>
-		/// <param name="random">Source of bytes for <see cref="PingPayloadPattern.Random"/>.</param>
-		public static byte[] Create(PingPayloadPattern pattern, int size, Random random)
+		/// <param name="seed">Seed for <see cref="PingPayloadPattern.Random"/>.  The same seed and size always give the same bytes, so a random payload can be rebuilt later from its seed instead of being kept.</param>
+		public static byte[] Create(PingPayloadPattern pattern, int size, int seed)
 		{
 			byte[] payload = new byte[Math.Max(0, size)];
 			switch (pattern)
@@ -63,10 +63,33 @@ namespace PingTracer.Util
 						payload[i] = (i & 1) == 0 ? (byte)0x55 : (byte)0xAA;
 					break;
 				case PingPayloadPattern.Random:
-					random.NextBytes(payload);
+					new Random(seed).NextBytes(payload);
 					break;
 			}
 			return payload;
+		}
+
+		private const string hexDigits = "0123456789abcdef";
+
+		/// <summary>
+		/// Writes data as hexadecimal.  If the data is longer than <paramref name="maxBytes"/>, only that many bytes are written, followed by a note of how many were left out.
+		/// </summary>
+		public static void WriteHex(System.IO.TextWriter writer, byte[] data, int maxBytes)
+		{
+			if (data == null)
+				return;
+			int count = Math.Min(data.Length, maxBytes);
+			for (int i = 0; i < count; i++)
+			{
+				writer.Write(hexDigits[data[i] >> 4]);
+				writer.Write(hexDigits[data[i] & 0xF]);
+			}
+			if (count < data.Length)
+			{
+				writer.Write("...(+");
+				writer.Write(data.Length - count);
+				writer.Write(" bytes)");
+			}
 		}
 
 		/// <summary>

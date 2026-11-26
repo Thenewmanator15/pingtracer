@@ -26,6 +26,14 @@ namespace PingTracer
 		/// Milliseconds to wait for each ping response before it is considered timed out.  Set from the current configuration.
 		/// </summary>
 		private volatile int pingTimeoutMs = 5000;
+		/// <summary>
+		/// Size in bytes of the payload sent with each ping.  Set from the current configuration.
+		/// </summary>
+		private volatile int pingPayloadSize = 32;
+		/// <summary>
+		/// What the payload is filled with, as a <see cref="PingTracer.Util.PingPayloadPattern"/> value.  Set from the current configuration.
+		/// </summary>
+		private volatile int pingPayloadPattern = 0;
 
 		private long successfulPings = 0;
 		private long failedPings = 0;
@@ -454,7 +462,7 @@ namespace PingTracer
 					}
 					if (target != null)
 					{
-						foreach (TracertEntry entry in Tracert.Trace(target, 64, pingTimeoutMs, settings.pingPayloadSizeBytes))
+						foreach (TracertEntry entry in Tracert.Trace(target, 64, pingTimeoutMs, pingPayloadSize))
 						{
 							if (self.CancellationPending)
 								break;
@@ -494,8 +502,9 @@ namespace PingTracer
 				Stopwatch sw = Stopwatch.StartNew();
 				long nextPingDueMs = 0;
 				Random payloadRandom = new Random();
-				PingTracer.Util.PingPayloadPattern bufferPattern = PingTracer.Util.PingPayload.FromSetting(settings.pingPayloadPattern);
-				byte[] buffer = PingTracer.Util.PingPayload.Create(bufferPattern, settings.pingPayloadSizeBytes, payloadRandom);
+				PingTracer.Util.PingPayloadPattern bufferPattern = PingTracer.Util.PingPayload.FromSetting(pingPayloadPattern);
+				int bufferSeed = payloadRandom.Next();
+				byte[] buffer = PingTracer.Util.PingPayload.Create(bufferPattern, pingPayloadSize, bufferSeed);
 
 				long numberOfPingLoopIterations = 0;
 				DateTime tenPingsAt = DateTime.MinValue;
@@ -551,10 +560,12 @@ namespace PingTracer
 								nextPingDueMs = GetNextPingDueMs(nextPingDueMs, sw.ElapsedMilliseconds, pingDelay);
 								// The payload is only rebuilt when a setting changed, or when the pattern calls for new content every round.
 								// A rebuilt payload is a new array, because pings still in flight are checked against the array they were sent with.
-								PingTracer.Util.PingPayloadPattern pattern = PingTracer.Util.PingPayload.FromSetting(settings.pingPayloadPattern);
-								if (PingTracer.Util.PingPayload.ChangesEveryRound(pattern) || pattern != bufferPattern || buffer.Length != settings.pingPayloadSizeBytes)
+								PingTracer.Util.PingPayloadPattern pattern = PingTracer.Util.PingPayload.FromSetting(pingPayloadPattern);
+								int payloadSize = pingPayloadSize;
+								if (PingTracer.Util.PingPayload.ChangesEveryRound(pattern) || pattern != bufferPattern || buffer.Length != payloadSize)
 								{
-									buffer = PingTracer.Util.PingPayload.Create(pattern, settings.pingPayloadSizeBytes, payloadRandom);
+									bufferSeed = payloadRandom.Next();
+									buffer = PingTracer.Util.PingPayload.Create(pattern, payloadSize, bufferSeed);
 									bufferPattern = pattern;
 								}
 								// We can't re-use the same Ping instance because it is only capable of one ping at a time.
@@ -565,7 +576,7 @@ namespace PingTracer
 									Ping pinger = PingInstancePool.Get();
 									pinger.PingCompleted += pinger_PingCompleted;
 									// Each ping is stamped separately, immediately before it is sent.
-									object[] state = new object[] { null, offset, graph, targetMapping.Key, targetMapping.Value, pinger, null, buffer };
+									object[] state = new object[] { null, offset, graph, targetMapping.Key, targetMapping.Value, pinger, null, buffer, bufferSeed, (byte)bufferPattern };
 									state[0] = PingTracer.Util.PreciseClock.Now;
 									state[6] = PingTracer.Util.PreciseClock.Timestamp;
 									pinger.SendAsync(targetMapping.Value, pingTimeoutMs, buffer, state);
@@ -648,8 +659,14 @@ namespace PingTracer
 					return;
 				}
 				PingLog pingLog = new PingLog(time, (short)e.Reply.RoundtripTime, e.Reply.Status, measuredMicroseconds);
+				// Enough is recorded about the payload to rebuild it later, without keeping a copy for every ping.
+				pingLog.payloadSize = ((byte[])args[7]).Length;
+				pingLog.payloadSeed = (int)args[8];
+				pingLog.payloadPattern = (byte)args[9];
 				// A reply should carry back exactly the data that was sent.  If it does not, something on the path altered or truncated it.
 				pingLog.dataMismatch = e.Reply.Status == IPStatus.Success && !PingTracer.Util.PingPayload.Matches((byte[])args[7], e.Reply.Buffer);
+				if (pingLog.dataMismatch)
+					pingLog.receivedData = e.Reply.Buffer;
 				graph.AddPingLogToSpecificOffset(pingNum, pingLog);
 				if (pingLog.dataMismatch && clearedDeadHosts && LogFailures && pingTargets.ContainsKey(pingTargetId))
 					CreateLogEntry("" + GetTimestamp(time) + ", " + remoteHost.ToString() + ": Reply data did not match what was sent (" + e.Reply.Buffer.Length + " of " + ((byte[])args[7]).Length + " bytes returned, " + e.Reply.RoundtripTime + "ms)");
@@ -919,6 +936,8 @@ namespace PingTracer
 					pingDelay = Math.Max(100, (int)(1000 * currentConfiguration.rate));
 
 				pingTimeoutMs = currentConfiguration.GetPingTimeoutMs();
+				pingPayloadSize = currentConfiguration.GetPingPayloadSizeBytes(settings.pingPayloadSizeBytes);
+				pingPayloadPattern = currentConfiguration.pingPayloadPattern;
 
 				if (currentConfiguration.hosts != null && currentConfiguration.hosts.Count > 1)
 					traceRoute = false;
@@ -1510,6 +1529,12 @@ namespace PingTracer
 			// Update ping timeout (applies to pings sent from now on)
 			pingTimeoutMs = cfg.GetPingTimeoutMs();
 			currentConfiguration.pingTimeoutMs = cfg.pingTimeoutMs;
+
+			// Update ping payload (applies to pings sent from now on)
+			pingPayloadSize = cfg.GetPingPayloadSizeBytes(settings.pingPayloadSizeBytes);
+			pingPayloadPattern = cfg.pingPayloadPattern;
+			currentConfiguration.pingPayloadSizeBytes = cfg.pingPayloadSizeBytes;
+			currentConfiguration.pingPayloadPattern = cfg.pingPayloadPattern;
 
 			// Update non-live properties (take effect on next start)
 			currentConfiguration.hosts = cfg.hosts;

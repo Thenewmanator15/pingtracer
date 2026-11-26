@@ -31,10 +31,6 @@ namespace PingTracer
 			nudGraphScrollMultiplier.Value = mainForm.settings.graphScrollMultiplier;
 			cbShowDateInCorner.Checked = mainForm.settings.showDateOnGraphTimeline;
 			nudPingTimeoutRedLineHeight.Value = mainForm.settings.maxHeightOfPingTimeoutLine;
-			nudPingPayloadSize.Value = Math.Max(nudPingPayloadSize.Minimum, Math.Min(nudPingPayloadSize.Maximum, mainForm.settings.pingPayloadSizeBytes));
-			cbPingPayloadPattern.Items.AddRange(PingTracer.Util.PingPayload.PatternNames);
-			cbPingPayloadPattern.SelectedIndex = (int)PingTracer.Util.PingPayload.FromSetting(mainForm.settings.pingPayloadPattern);
-			cbPingPayloadPattern.SelectedIndexChanged += cbPingPayloadPattern_SelectedIndexChanged;
 			txtCustomTimeString.Text = mainForm.settings.customTimeStr;
 			nudTopMargin.Value = mainForm.settings.osWindowTopMargin;
 			nudLeftMargin.Value = mainForm.settings.osWindowLeftMargin;
@@ -98,18 +94,6 @@ namespace PingTracer
 		private void nudPingTimeoutRedLineHeight_ValueChanged(object sender, EventArgs e)
 		{
 			mainForm.settings.maxHeightOfPingTimeoutLine = (int)nudPingTimeoutRedLineHeight.Value;
-			mainForm.settings.Save();
-		}
-
-		private void nudPingPayloadSize_ValueChanged(object sender, EventArgs e)
-		{
-			mainForm.settings.pingPayloadSizeBytes = (int)nudPingPayloadSize.Value;
-			mainForm.settings.Save();
-		}
-
-		private void cbPingPayloadPattern_SelectedIndexChanged(object sender, EventArgs e)
-		{
-			mainForm.settings.pingPayloadPattern = cbPingPayloadPattern.SelectedIndex;
 			mainForm.settings.Save();
 		}
 

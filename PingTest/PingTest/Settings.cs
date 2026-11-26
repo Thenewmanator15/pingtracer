@@ -33,10 +33,6 @@ namespace PingTracer
 		public int maxHeightOfPingTimeoutLine = 10000;
 		public int pingPayloadSizeBytes = 32;
 		/// <summary>
-		/// What the ping payload is filled with.  A value of <see cref="PingTracer.Util.PingPayloadPattern"/>.
-		/// </summary>
-		public int pingPayloadPattern = 0;
-		/// <summary>
 		/// The Guid of the most recently loaded PingConfiguration, used to auto-load on next launch.
 		/// </summary>
 		public string lastLoadedConfigurationGuid = null;

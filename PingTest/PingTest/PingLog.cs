@@ -24,6 +24,22 @@ namespace PingTracer
 		/// True if the ping succeeded but the data in the reply was not the data that was sent.
 		/// </summary>
 		public bool dataMismatch;
+		/// <summary>
+		/// Size in bytes of the payload that was sent, or -1 if that was not recorded.
+		/// </summary>
+		public int payloadSize = -1;
+		/// <summary>
+		/// What the payload was filled with, as a <see cref="PingTracer.Util.PingPayloadPattern"/> value.
+		/// </summary>
+		public byte payloadPattern;
+		/// <summary>
+		/// The seed a random payload was generated from.  Together with <see cref="payloadSize"/> and <see cref="payloadPattern"/> this is enough to rebuild exactly what was sent.
+		/// </summary>
+		public int payloadSeed;
+		/// <summary>
+		/// The data returned in the reply.  Only kept when it differed from what was sent (see <see cref="dataMismatch"/>); otherwise null.
+		/// </summary>
+		public byte[] receivedData;
 		public PingLog(DateTime startTime, short pingTime, IPStatus result)
 		{
 			this.startTime = startTime;

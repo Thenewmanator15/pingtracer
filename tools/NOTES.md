@@ -67,41 +67,75 @@ reads 5 ms long and backward 5 ms short. The sum is always right.
 
 This is reasoning, not something measured here yet.
 
-## Tools to check out
+## Our own two-way script: built and tested
 
-All **from memory**. None has been run here.
+`ping_twoway.py` does the four timestamps. Run `reflect` on the far machine and `send`
+on this one. It writes the same CSV shape as PingTracer's export, with forward,
+backward and round trip as three "hosts", so the report, histogram and spike scripts
+work on it unchanged.
 
-- [ ] **twampy** — a Python implementation of TWAMP, the standard two-way method.
-      Sender on one machine, responder on the other; reports outbound, inbound and
-      round-trip delay, jitter and loss. Check: does it run on Python 3.15, and what
-      exactly does it print?
-- [ ] **irtt** — a small tool built for this; reports send and receive delay and loss
-      separately. Said to be packaged for OpenWrt, so the router could be one end.
-      Check: is it available for OpenWrt 25.12, and is there a Windows build?
-- [ ] **TWAMP / OWAMP in perfSONAR** — what research networks use. Probably more than
-      is needed.
-- [ ] **Scapy** — builds the ICMP timestamp request in Python. Needs administrator
-      rights and Npcap; only your own devices answered that kind of ping.
-- [ ] **ntplib** — measures how far apart two clocks are. A helper for the others,
-      to put a figure on the clock error.
-- [ ] **netem** — not a measuring tool: a link emulator in Linux, said to be available
-      for OpenWrt. Adds a chosen delay, loss and jitter to a normal connection, giving
-      a satellite-like link on the desk to test everything against known conditions.
-      Check: is it packaged for OpenWrt 25.12?
+Checked here on 26 November 2026 by running both ends on this PC, where there is only
+one clock, with known delays and losses injected (`test_ping_twoway.py`):
 
-## An idea not yet built: our own two-way script
+| Injected | Measured |
+|---|---|
+| nothing | forward 0.4 ms, backward 0.2 ms |
+| 30 ms out, 80 ms back | forward 31.8 ms, backward 81.0 ms |
+| 80 ms out, 30 ms back | forward 82.0 ms, backward 31.3 ms |
+| every 4th probe lost on the way out | 10 of 40 lost out, 0 back |
+| every 5th reply lost on the way back | 0 lost out, 8 of 40 back |
+| both at once | 10 lost out, 6 back |
 
-A sender and a reflector trading UDP packets with the four timestamps, writing the
-same CSV shape as PingTracer's export with forward and backward columns, so the
-report, histogram and spike scripts here work per direction.
+A made-up link with a 60 ms burst on the way back only, one second in every eight:
+the spike script found 5 spikes on backward, none on forward, spaced every 8.0 s, and
+a correlation between the two directions of +0.01.
 
-It could be tested before being trusted: run both ends on one PC, where there is only
-one clock, have the reflector hold packets for a known time each way, and check the
-script reports those figures.
+Not checked: two separate machines. That needs the reflector running on a far end,
+and brings in the clock difference between the two.
 
-For a real measurement the reflector must run on a machine at the far end. The Home
-Assistant box could be one.
+To run the reflector on the far machine (any Python 3.8 or newer, nothing to install):
 
+    python ping_twoway.py reflect
+
+It listens on UDP port 47800, which must be allowed through to that machine.
+
+## Existing apps that do this
+
+Checked against each project's own page on 26 November 2026, except where marked.
+
+| App | Each direction separately? | Windows | Far end needs | Notes |
+|---|---|---|---|---|
+| **twampy** (Python, BSD-3-Clause) <https://github.com/nokia/twampy> | Yes: Outbound, Inbound and Roundtrip rows, each with delay, jitter and loss | Yes, listed as fully supported | `twampy responder` | Implements TWAMP, TWAMP Light and STAMP. Python 3.11 or newer, tested with 3.11 and 3.14, standard library only. Software timestamps, stated accuracy 100 µs to 2 ms. |
+| **irtt** (Go, GPL-2.0) <https://github.com/heistp/irtt> | Yes: one-way delay, and loss split into upstream and downstream | Not stated outright; the code has Windows timing support | an irtt server | One-way delay needs synchronised clocks; round trip and jitter do not. Version 0.9.2. |
+| **perfSONAR** <https://docs.perfsonar.net/> | Not confirmed from the page read | Not stated | its own servers | A collection of measurement software used by research networks. The page links to OWAMP configuration; TWAMP was not mentioned on it. |
+
+TWAMP itself is an internet standard: RFC 5357, "A Two-Way Active Measurement Protocol
+(TWAMP)", <https://www.rfc-editor.org/rfc/rfc5357>.
+
+Still to check:
+
+- [ ] twampy on Python 3.15 (its page says tested to 3.14).
+- [ ] irtt for OpenWrt 25.12. The OpenWrt package page refused an automated read.
+- [ ] **Scapy** and **ntplib** (from memory): Scapy builds the ICMP timestamp request
+      but needs administrator rights; ntplib measures how far apart two clocks are.
+- [ ] **netem** (from memory): a link emulator in Linux, said to be available for
+      OpenWrt. Adds a chosen delay, loss and jitter to a normal connection, giving a
+      satellite-like link on the desk.
+
+## A fault found in PingTracer while testing
+
+Closing PingTracer while it is pinging crashes it. Checked on 26 November 2026 by
+starting it pinging four hosts at 5 a second and closing the window normally:
+
+| Build | Closed while pinging | Closed while not pinging |
+|---|---|---|
+| The author's 2.1, untouched | crashed 5 times, hung once, of 6 | clean, 3 of 3 |
+| The modified build | crashed 4 of 4 | clean, 3 of 3 |
+
+The exit codes were 0xC0000005 (access violation) and 0xC0000374 (heap corruption).
+So it was already there and is not caused by the changes. The cause has not been
+investigated. Built here against .NET Framework 4.7.2; the official download was not
+tested.
 ## Related things already found
 
 - ICMP can be rate-limited or given low priority by routers, so a ping shows how the

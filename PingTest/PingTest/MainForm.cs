@@ -493,7 +493,9 @@ namespace PingTracer
 				// Pings are sent on a fixed timeline measured by this stopwatch, so a late wake-up delays one ping without pushing back all the following ones.
 				Stopwatch sw = Stopwatch.StartNew();
 				long nextPingDueMs = 0;
-				byte[] buffer = new byte[settings.pingPayloadSizeBytes];
+				Random payloadRandom = new Random();
+				PingTracer.Util.PingPayloadPattern bufferPattern = PingTracer.Util.PingPayload.FromSetting(settings.pingPayloadPattern);
+				byte[] buffer = PingTracer.Util.PingPayload.Create(bufferPattern, settings.pingPayloadSizeBytes, payloadRandom);
 
 				long numberOfPingLoopIterations = 0;
 				DateTime tenPingsAt = DateTime.MinValue;
@@ -547,6 +549,14 @@ namespace PingTracer
 							if (!self.CancellationPending)
 							{
 								nextPingDueMs = GetNextPingDueMs(nextPingDueMs, sw.ElapsedMilliseconds, pingDelay);
+								// The payload is only rebuilt when a setting changed, or when the pattern calls for new content every round.
+								// A rebuilt payload is a new array, because pings still in flight are checked against the array they were sent with.
+								PingTracer.Util.PingPayloadPattern pattern = PingTracer.Util.PingPayload.FromSetting(settings.pingPayloadPattern);
+								if (PingTracer.Util.PingPayload.ChangesEveryRound(pattern) || pattern != bufferPattern || buffer.Length != settings.pingPayloadSizeBytes)
+								{
+									buffer = PingTracer.Util.PingPayload.Create(pattern, settings.pingPayloadSizeBytes, payloadRandom);
+									bufferPattern = pattern;
+								}
 								// We can't re-use the same Ping instance because it is only capable of one ping at a time.
 								foreach (KeyValuePair<int, IPAddress> targetMapping in pingTargets)
 								{
@@ -554,10 +564,8 @@ namespace PingTracer
 									long offset = graph.ClearNextOffset();
 									Ping pinger = PingInstancePool.Get();
 									pinger.PingCompleted += pinger_PingCompleted;
-									if (buffer.Length != settings.pingPayloadSizeBytes)
-										buffer = new byte[settings.pingPayloadSizeBytes];
 									// Each ping is stamped separately, immediately before it is sent.
-									object[] state = new object[] { null, offset, graph, targetMapping.Key, targetMapping.Value, pinger, null };
+									object[] state = new object[] { null, offset, graph, targetMapping.Key, targetMapping.Value, pinger, null, buffer };
 									state[0] = PingTracer.Util.PreciseClock.Now;
 									state[6] = PingTracer.Util.PreciseClock.Timestamp;
 									pinger.SendAsync(targetMapping.Value, pingTimeoutMs, buffer, state);
@@ -639,7 +647,12 @@ namespace PingTracer
 					Interlocked.Increment(ref failedPings);
 					return;
 				}
-				graph.AddPingLogToSpecificOffset(pingNum, new PingLog(time, (short)e.Reply.RoundtripTime, e.Reply.Status, measuredMicroseconds));
+				PingLog pingLog = new PingLog(time, (short)e.Reply.RoundtripTime, e.Reply.Status, measuredMicroseconds);
+				// A reply should carry back exactly the data that was sent.  If it does not, something on the path altered or truncated it.
+				pingLog.dataMismatch = e.Reply.Status == IPStatus.Success && !PingTracer.Util.PingPayload.Matches((byte[])args[7], e.Reply.Buffer);
+				graph.AddPingLogToSpecificOffset(pingNum, pingLog);
+				if (pingLog.dataMismatch && clearedDeadHosts && LogFailures && pingTargets.ContainsKey(pingTargetId))
+					CreateLogEntry("" + GetTimestamp(time) + ", " + remoteHost.ToString() + ": Reply data did not match what was sent (" + e.Reply.Buffer.Length + " of " + ((byte[])args[7]).Length + " bytes returned, " + e.Reply.RoundtripTime + "ms)");
 				if (e.Reply.Status != IPStatus.Success)
 				{
 					Interlocked.Increment(ref failedPings);

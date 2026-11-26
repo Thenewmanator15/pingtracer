@@ -25,6 +25,8 @@ namespace PingTracer
 		public static Pen penSuccessWorse = new Pen(brushSuccessWorse, 1);
 		public static Brush brushFailure = new SolidBrush(Color.FromArgb(255, 0, 0));
 		public static Pen penFailure = new Pen(brushFailure, 1);
+		public static Brush brushDataMismatch = new SolidBrush(Color.FromArgb(255, 0, 255));
+		public static Pen penDataMismatch = new Pen(brushDataMismatch, 1);
 		public static Brush brushText = new SolidBrush(Color.FromArgb(255, 255, 255));
 		public static Color colorBackground = Color.FromArgb(0, 0, 0);
 		public static Brush brushBackgroundBad = new SolidBrush(Color.FromArgb(35, 35, 0));
@@ -291,7 +293,7 @@ namespace PingTracer
 					writer.Write(received.Value.ToString(csvTimeFormat, invariant));
 				if (success)
 				{
-					writer.Write(",Success,");
+					writer.Write(p.dataMismatch ? ",DataMismatch," : ",Success,");
 					writer.Write(p.pingTime.ToString(invariant));
 					writer.Write(',');
 					if (received.HasValue)
@@ -513,7 +515,7 @@ namespace PingTracer
 						continue;
 
 					bool drawMyLine = false;
-					if (p.result == IPStatus.Success)
+					if (p.result == IPStatus.Success && !p.dataMismatch)
 					{
 						if (p.pingTime > lowerLimitDraw)
 						{
@@ -540,8 +542,9 @@ namespace PingTracer
 					else
 					{
 						drawMyLine = true;
-						lineBrush = brushFailure;
-						linePen = penFailure;
+						// A reply whose data came back altered is drawn like a failure, in its own color, so it stands out from both good pings and lost ones.
+						lineBrush = p.dataMismatch ? brushDataMismatch : brushFailure;
+						linePen = p.dataMismatch ? penDataMismatch : penFailure;
 						if (height > settings.maxHeightOfPingTimeoutLine)
 							pStart.Y = height - settings.maxHeightOfPingTimeoutLine;
 						else
@@ -754,7 +757,7 @@ namespace PingTracer
 					return "Waiting for response, Mouse ms: " + mouseMs;
 				if (pingLog.result != IPStatus.Success)
 					return GetTimestamp(pingLog.startTime) + ": " + pingLog.result.ToString() + ", Mouse ms: " + mouseMs;
-				return GetTimestamp(pingLog.startTime) + ": " + pingLog.pingTime + " ms, Mouse ms: " + mouseMs;
+				return GetTimestamp(pingLog.startTime) + ": " + pingLog.pingTime + " ms" + (pingLog.dataMismatch ? " (reply data did not match)" : "") + ", Mouse ms: " + mouseMs;
 			}
 			catch (Exception)
 			{

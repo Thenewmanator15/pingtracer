@@ -47,6 +47,8 @@
 			this.nudPingPayloadSize = new System.Windows.Forms.NumericUpDown();
 			this.label8 = new System.Windows.Forms.Label();
 			this.label9 = new System.Windows.Forms.Label();
+			this.cbPingPayloadPattern = new System.Windows.Forms.ComboBox();
+			this.label10 = new System.Windows.Forms.Label();
 			this.label4 = new System.Windows.Forms.Label();
 			this.txtCustomTimeString = new System.Windows.Forms.TextBox();
 			this.customTimeStringHelp = new System.Windows.Forms.LinkLabel();
@@ -318,6 +320,30 @@
 			this.label9.TabIndex = 26;
 			this.label9.Text = "(bytes)";
 			//
+			// cbPingPayloadPattern
+			//
+			this.cbPingPayloadPattern.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+			this.cbPingPayloadPattern.FormattingEnabled = true;
+			this.cbPingPayloadPattern.Location = new System.Drawing.Point(160, 308);
+			this.cbPingPayloadPattern.Name = "cbPingPayloadPattern";
+			this.cbPingPayloadPattern.Size = new System.Drawing.Size(147, 21);
+			this.cbPingPayloadPattern.TabIndex = 27;
+			this.toolTip1.SetToolTip(this.cbPingPayloadPattern, "What the ping payload is filled with. Every reply is checked \r\nagainst what was se" +
+        "nt; a reply whose data came back altered \r\nis drawn in magenta. Random data cann" +
+        "ot be compressed, so \r\nthe full payload size crosses links which compress.");
+			//
+			// label10
+			//
+			this.label10.AutoSize = true;
+			this.label10.Location = new System.Drawing.Point(12, 311);
+			this.label10.Name = "label10";
+			this.label10.Size = new System.Drawing.Size(101, 13);
+			this.label10.TabIndex = 28;
+			this.label10.Text = "Ping payload data:";
+			this.toolTip1.SetToolTip(this.label10, "What the ping payload is filled with. Every reply is checked \r\nagainst what was se" +
+        "nt; a reply whose data came back altered \r\nis drawn in magenta. Random data cann" +
+        "ot be compressed, so \r\nthe full payload size crosses links which compress.");
+			//
 			// label4
 			//
 			this.label4.AutoSize = true;
@@ -366,7 +392,7 @@
 			this.groupBoxFormMargins.Controls.Add(this.nudTopMargin);
 			this.groupBoxFormMargins.Controls.Add(this.label5);
 			this.groupBoxFormMargins.Controls.Add(this.panel1);
-			this.groupBoxFormMargins.Location = new System.Drawing.Point(12, 309);
+			this.groupBoxFormMargins.Location = new System.Drawing.Point(12, 337);
 			this.groupBoxFormMargins.Name = "groupBoxFormMargins";
 			this.groupBoxFormMargins.Size = new System.Drawing.Size(346, 131);
 			this.groupBoxFormMargins.TabIndex = 20;
@@ -466,7 +492,9 @@
 			// 
 			this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
 			this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-			this.ClientSize = new System.Drawing.Size(370, 447);
+			this.ClientSize = new System.Drawing.Size(370, 475);
+			this.Controls.Add(this.label10);
+			this.Controls.Add(this.cbPingPayloadPattern);
 			this.Controls.Add(this.label9);
 			this.Controls.Add(this.nudPingPayloadSize);
 			this.Controls.Add(this.label8);
@@ -533,5 +561,7 @@
 		private System.Windows.Forms.NumericUpDown nudPingPayloadSize;
 		private System.Windows.Forms.Label label8;
 		private System.Windows.Forms.Label label9;
+		private System.Windows.Forms.ComboBox cbPingPayloadPattern;
+		private System.Windows.Forms.Label label10;
 	}
 }

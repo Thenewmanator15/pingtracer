@@ -20,6 +20,10 @@ namespace PingTracer
 		/// Microseconds from sending the ping until this program was told the result, or 0 if that was not measured.  This is finer than <see cref="pingTime"/> but includes the delay before the program was notified.
 		/// </summary>
 		public int measuredMicroseconds;
+		/// <summary>
+		/// True if the ping succeeded but the data in the reply was not the data that was sent.
+		/// </summary>
+		public bool dataMismatch;
 		public PingLog(DateTime startTime, short pingTime, IPStatus result)
 		{
 			this.startTime = startTime;

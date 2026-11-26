@@ -547,7 +547,6 @@ namespace PingTracer
 							if (!self.CancellationPending)
 							{
 								nextPingDueMs = GetNextPingDueMs(nextPingDueMs, sw.ElapsedMilliseconds, pingDelay);
-								DateTime lastPingAt = DateTime.Now;
 								// We can't re-use the same Ping instance because it is only capable of one ping at a time.
 								foreach (KeyValuePair<int, IPAddress> targetMapping in pingTargets)
 								{
@@ -557,7 +556,11 @@ namespace PingTracer
 									pinger.PingCompleted += pinger_PingCompleted;
 									if (buffer.Length != settings.pingPayloadSizeBytes)
 										buffer = new byte[settings.pingPayloadSizeBytes];
-									pinger.SendAsync(targetMapping.Value, pingTimeoutMs, buffer, new object[] { lastPingAt, offset, graph, targetMapping.Key, targetMapping.Value, pinger });
+									// Each ping is stamped separately, immediately before it is sent.
+									object[] state = new object[] { null, offset, graph, targetMapping.Key, targetMapping.Value, pinger, null };
+									state[0] = PingTracer.Util.PreciseClock.Now;
+									state[6] = PingTracer.Util.PreciseClock.Timestamp;
+									pinger.SendAsync(targetMapping.Value, pingTimeoutMs, buffer, state);
 								}
 							}
 						}
@@ -615,10 +618,13 @@ namespace PingTracer
 
 		void pinger_PingCompleted(object sender, PingCompletedEventArgs e)
 		{
+			// Taken first, so as little of this method's own work as possible is counted in the measurement.
+			long completedTimestamp = PingTracer.Util.PreciseClock.Timestamp;
 			try
 			{
 				object[] args = (object[])e.UserState;
 				DateTime time = (DateTime)args[0];
+				int measuredMicroseconds = PingTracer.Util.PreciseClock.MicrosecondsBetween((long)args[6], completedTimestamp);
 				long pingNum = (long)args[1];
 
 				PingGraphControl graph = (PingGraphControl)args[2];
@@ -633,7 +639,7 @@ namespace PingTracer
 					Interlocked.Increment(ref failedPings);
 					return;
 				}
-				graph.AddPingLogToSpecificOffset(pingNum, new PingLog(time, (short)e.Reply.RoundtripTime, e.Reply.Status));
+				graph.AddPingLogToSpecificOffset(pingNum, new PingLog(time, (short)e.Reply.RoundtripTime, e.Reply.Status, measuredMicroseconds));
 				if (e.Reply.Status != IPStatus.Success)
 				{
 					Interlocked.Increment(ref failedPings);
@@ -959,7 +965,7 @@ namespace PingTracer
 			int rows = 0;
 			using (StreamWriter writer = new StreamWriter(path, false, new UTF8Encoding(true), 65536))
 			{
-				writer.WriteLine("Host,Time,Result,RoundTripMs");
+				writer.WriteLine(PingGraphControl.CsvHeader);
 				foreach (PingGraphControl graph in pingGraphs.Values)
 					rows += graph.WriteCsvRows(writer);
 			}

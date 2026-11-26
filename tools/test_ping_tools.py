@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Checks ping_export.py, ping_report.py and ping_histogram.py.
 
-    py -3.13 test_ping_tools.py
+    py -3.15 test_ping_tools.py
 
 It writes an export with known contents, reads it back, and compares every
 figure with a value worked out a second way.  When NumPy is installed the
@@ -160,6 +160,36 @@ def run(checks: Checks) -> None:
         check("sample file: threshold", sample_spikes.threshold_ms, 32.0)
         check("sample file: spikes (14 every 37 s, one at 150 s, one two-ping at 300 s)", len(sample_spikes.spikes), 16)
         check("spike report mentions the shared moment", "also: far" in ping_spikes.report(found), True)
+
+        print(" numbered moments and measured figures")
+        moments = ping_spikes.list_moments(found)
+        check("moments in time order: M1 shared at 4 s, M2 far at 8 s, M3 near at 12 s",
+              [(m.number, m.start.second, m.hosts) for m in moments], [(1, 4, ["near", "far"]), (2, 8, ["far"]), (3, 12, ["near"])])
+        check("each spike carries its moment number", ([s.moment for s in near_spikes], [s.moment for s in far_spikes]), ([1, 3], [1, 2]))
+        check("peak above the host's own median", [s.above_ms for s in near_spikes], [68, 38])
+        check("chance of at least 1 in 2 tries at 0.2", ping_spikes.chance_of_at_least(1, 2, 0.2), 0.36)
+        check("chance of at least 2 in 2 tries at 0.5", ping_spikes.chance_of_at_least(2, 2, 0.5), 0.25)
+        check("chance of at least 0 is certain", ping_spikes.chance_of_at_least(0, 5, 0.3), 1.0)
+        relation = ping_spikes.relate({"near": near, "far": far}, found)[0]
+        check("far host: 1 of its 2 spikes was together with the near host", (relation.together, relation.spikes), (1, 2))
+        check("expected by chance (near host spiking for 3 s of a 15 s run)", relation.expected_by_chance, 0.4)
+        check("probability of 1 or more by chance", relation.chance_probability, 0.36)
+        check("every round paired", relation.rounds_paired, 16)
+        # by hand: far is above its median by 1, 75, 79, 70, 1 (total 226); matched on near in the same round by 0, 58, 68, 1, 0 (total 127)
+        check("shared delay, worked out by hand", relation.shared_delay_percent, 100 * 127 / 226)
+        offset = [Ping(p.sent + timedelta(milliseconds=3), p.result, rtt_ms=p.rtt_ms) for p in far]
+        check("rounds still pair when the second host is sent 3 ms later", len(ping_spikes.pair_rounds(near, [p.rtt_ms for p in near], offset, [p.rtt_ms for p in offset])), 16)
+        check("report gives the figures", "shared delay      56%" in ping_spikes.report(found, [relation]), True)
+        try:
+            import numpy as np
+        except ImportError:
+            print("  NumPy not installed: skipped the correlation comparison")
+        else:
+            numpy_r = float(np.corrcoef([p.rtt_ms for p in near], [p.rtt_ms for p in far])[0, 1])
+            check(f"correlation: these scripts {relation.correlation:.6f}, NumPy {numpy_r:.6f}", relation.correlation, numpy_r)
+            a = np.array([p.rtt_ms for p in near], dtype=float); b = np.array([p.rtt_ms for p in far], dtype=float)
+            numpy_shared = float(100 * np.minimum(np.clip(a - 2, 0, None), np.clip(b - 20, 0, None)).sum() / np.clip(b - 20, 0, None).sum())
+            check(f"shared delay: these scripts {relation.shared_delay_percent:.4f}, NumPy {numpy_shared:.4f}", relation.shared_delay_percent, numpy_shared)
 
         print(" histogram script")
         try:

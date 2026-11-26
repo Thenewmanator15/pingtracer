@@ -27,9 +27,15 @@ from __future__ import annotations
 
 import csv
 import math
+import sys
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
+
+# Written for, and only checked on, the latest Python.
+REQUIRED_PYTHON = (3, 15)
+if sys.version_info < REQUIRED_PYTHON:
+    raise SystemExit(f"These scripts need Python {REQUIRED_PYTHON[0]}.{REQUIRED_PYTHON[1]} or newer; this is {sys.version.split()[0]}. Run them with: py -{REQUIRED_PYTHON[0]}.{REQUIRED_PYTHON[1]}")
 
 TIME_FORMATS = ("%Y-%m-%d %H:%M:%S.%f", "%Y-%m-%d %H:%M:%S")
 SUCCESS_RESULTS = ("Success", "DataMismatch")

@@ -4,8 +4,8 @@
 Each picture has the histogram on top, with the baseline, median and worst 1%
 marked, and the pings over time underneath with lost pings in red.
 
-    py -3.13 ping_histogram.py "PingTracer 1.1.1.1 2026-11-26.csv"
-    py -3.13 ping_histogram.py export.csv --out plots --bin-ms 5
+    py -3.15 ping_histogram.py "PingTracer 1.1.1.1 2026-11-26.csv"
+    py -3.15 ping_histogram.py export.csv --out plots --bin-ms 5
 
 Needs matplotlib.  For the numbers alone, see ping_report.py.
 """

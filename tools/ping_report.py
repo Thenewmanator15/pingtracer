@@ -4,8 +4,8 @@
 For every host: latency statistics, loss, each drop-out with its start and
 length, and any reply whose data came back altered.
 
-    py -3.13 ping_report.py "PingTracer 1.1.1.1 2026-11-26.csv"
-    py -3.13 ping_report.py export.csv --min-outage 3 --text-histogram
+    py -3.15 ping_report.py "PingTracer 1.1.1.1 2026-11-26.csv"
+    py -3.15 ping_report.py export.csv --min-outage 3 --text-histogram
 
 Needs only the standard library.  For pictures, see ping_histogram.py.
 """

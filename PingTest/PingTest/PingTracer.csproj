@@ -109,6 +109,10 @@
     <Compile Include="NetworkTestsForm.cs">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="Outage.cs" />
+    <Compile Include="OutagesForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="PingLog.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

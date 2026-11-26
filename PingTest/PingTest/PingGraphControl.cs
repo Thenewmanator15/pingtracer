@@ -207,6 +207,57 @@ namespace PingTracer
 			this.Invalidate();
 		}
 		/// <summary>
+		/// Finds the outages in the buffered pings: runs of consecutive pings which got no successful response.  Pings still awaiting a response are ignored.
+		/// </summary>
+		/// <param name="minLostPings">How many pings in a row must be lost before the run counts as an outage.</param>
+		/// <param name="completed">Receives the number of pings which have a result.</param>
+		/// <param name="lost">Receives the number of those which were not successful.</param>
+		/// <returns>The outages, oldest first.</returns>
+		public List<Outage> GetOutages(int minLostPings, out int completed, out int lost)
+		{
+			List<Outage> outages = new List<Outage>();
+			completed = 0;
+			lost = 0;
+			PingLog[] buffer = pings;
+			long newest = Interlocked.Read(ref _nextIndexOffset);
+			if (newest < 0)
+				return outages;
+			long total = Math.Min(newest + 1, buffer.Length);
+			Outage current = null;
+			for (long n = newest + 1 - total; n <= newest; n++)
+			{
+				PingLog p = buffer[n % buffer.Length];
+				if (p == null)
+					continue;
+				completed++;
+				if (p.result == IPStatus.Success)
+				{
+					if (current != null)
+					{
+						// The outage lasted until the first ping that got through.
+						current.End = p.startTime;
+						if (current.LostPings >= minLostPings)
+							outages.Add(current);
+						current = null;
+					}
+				}
+				else
+				{
+					lost++;
+					if (current == null)
+						current = new Outage { Host = DisplayName, Start = p.startTime };
+					current.End = p.startTime;
+					current.LostPings++;
+				}
+			}
+			if (current != null && current.LostPings >= minLostPings)
+			{
+				current.Ongoing = true;
+				outages.Add(current);
+			}
+			return outages;
+		}
+		/// <summary>
 		/// Writes every completed ping currently held in the buffer, oldest first, as CSV rows (Host,Time,Result,RoundTripMs).  Does not write a header row.
 		/// </summary>
 		/// <param name="writer">Destination for the CSV rows.</param>

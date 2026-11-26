@@ -1410,6 +1410,13 @@ namespace PingTracer
 			form.Show(this);
 		}
 
+		private void mi_Outages_Click(object sender, EventArgs e)
+		{
+			OutagesForm form = new OutagesForm();
+			form.Icon = this.Icon;
+			form.Show(this);
+		}
+
 		private void mi_OutputLog_Click(object sender, EventArgs e)
 		{
 			ShowLogMessagesForm();

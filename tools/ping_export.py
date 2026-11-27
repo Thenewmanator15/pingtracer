@@ -96,6 +96,7 @@ class Summary:
     outages: list[Outage] = field(default_factory=list)
     mismatches: list[Mismatch] = field(default_factory=list)
     failure_kinds: dict[str, int] = field(default_factory=dict)
+    payload_checked: bool = False   # True if the export records what data each ping carried
 
     @property
     def loss_percent(self) -> float:
@@ -269,26 +270,35 @@ def summarise(host: str, pings: list[Ping], min_outage: int = 2, use_measured: b
         summary.jitter = jitter(pings, times)
     summary.outages = find_outages(pings, min_outage)
     summary.mismatches = find_mismatches(pings)
+    summary.payload_checked = any(p.payload_bytes is not None or p.sent_data for p in pings)
     return summary
 
 
 def histogram(values: list[float], bin_ms: float | None = None) -> tuple[list[float], list[int], float]:
     """Counts per bin.  Returns (left edges, counts, bin width).
 
-    Windows reports whole milliseconds, so the natural bin is 1 ms.  For a wide
-    spread the bin widens to keep about 120 bins at most.
+    Windows reports whole milliseconds, so for whole numbers the natural bin is 1 ms,
+    widening for a large spread to keep about 120 bins at most.  Finer figures, as from
+    a two-way tool, get the smallest round bin that keeps the count to about 60.
     """
     if not values:
         return [], [], bin_ms or 1.0
     low, high = min(values), max(values)
     if bin_ms is None:
-        bin_ms = max(1.0, math.ceil((high - low + 1) / 120))
+        if all(float(v).is_integer() for v in values):
+            bin_ms = max(1.0, math.ceil((high - low + 1) / 120))
+        else:
+            spread = max(high - low, 1e-9)
+            bin_ms = next((step for step in (0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1.0, 2.0, 5.0, 10.0, 20.0, 50.0, 100.0)
+                           if spread / step <= 60), math.ceil(spread / 60))
     start = math.floor(low / bin_ms) * bin_ms
-    bins = int(math.floor((high - start) / bin_ms)) + 1
+    # The small allowance keeps a value sitting exactly on an edge (30.1 with 0.1 bins) in its own bin
+    # despite binary rounding.
+    bins = int(math.floor((high - start) / bin_ms + 1e-9)) + 1
     counts = [0] * bins
     for value in values:
-        counts[min(bins - 1, int((value - start) / bin_ms))] += 1
-    return [start + i * bin_ms for i in range(bins)], counts, bin_ms
+        counts[min(bins - 1, int((value - start) / bin_ms + 1e-9))] += 1
+    return [round(start + i * bin_ms, 6) for i in range(bins)], counts, bin_ms
 
 
 # ----------------------------------------------------------------------- wording

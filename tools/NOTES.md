@@ -159,6 +159,28 @@ To run it from the download without installing, from inside its `src` folder
 
 Not checked: two separate machines.
 
+### Full statistics from a twampy run
+
+twampy prints one summary table. `twampy_stats.py` (in this folder) runs its sender in
+verbose mode, reads the line it logs for each probe, and reports full statistics for the
+way out, the way back and the round trip: baseline, median, mean, 95%, worst 1%, max,
+jitter, loss and outages. It saves a CSV the histogram and spike scripts read as they are.
+
+    py -3.15 twampy_stats.py FAR-IP:20001 --count 600 --interval 100 --plots
+
+Checked on 27 November 2026 (`test_twampy_stats.py`):
+
+- On a made-up log with known contents: each missing probe placed in the right direction,
+  and the one lost after the last reply reported as "direction unknown".
+- On a real twampy run of 150 probes over the relay (30 ms out, 80 ms back, 10% loss each
+  way): losses matched the relay's own count exactly (19 out, 10 back), the medians were
+  30.9 and 80.8 ms, and the means agreed with twampy's own table to 0.01 ms.
+- It warns when a direction piles up at exactly 0, which is how a clock difference shows
+  in twampy's figures.
+
+Limits: figures come from twampy's log, rounded to 0.01 ms. Between two answered probes
+the number lost each way is known, but not which individual probe went which way.
+
 Still to check:
 
 - [ ] irtt for OpenWrt 25.12. The OpenWrt package page refused an automated read.

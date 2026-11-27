@@ -27,7 +27,10 @@ def text_histogram(values: list[float], bin_ms: float | None, width: int = 50) -
     for edge, count in zip(edges, counts):
         if count == 0:
             continue
-        label = f"{edge:.0f}" if step == 1 else f"{edge:.0f}-{edge + step - 1:.0f}"
+        if step < 1:
+            label = f"{edge:g}"
+        else:
+            label = f"{edge:.0f}" if step == 1 else f"{edge:.0f}-{edge + step - 1:.0f}"
         bar = "#" * max(1, round(width * count / peak))
         lines.append(f"  {label:>11} ms | {bar} {count}")
     return lines
@@ -63,7 +66,7 @@ def report(summary: Summary) -> str:
                 where = "no differing byte in the part exported"
             length = "" if m.received_bytes == m.sent_bytes else f", {m.received_bytes} of {m.sent_bytes} bytes returned"
             out.append(f"    {m.sent:%Y-%m-%d %H:%M:%S}  {where}{length}")
-    else:
+    elif s.payload_checked:
         out.append("  all reply data matched what was sent")
     return "\n".join(out)
 

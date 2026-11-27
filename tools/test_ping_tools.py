@@ -103,6 +103,10 @@ def run(checks: Checks) -> None:
         check("jitter: a loss breaks the pair", jitter(broken, [20, None, 500, 510]), 10.0)
         check("histogram bins", histogram([20, 20, 21, 23]), ([20.0, 21.0, 22.0, 23.0], [2, 1, 0, 1], 1.0))
         check("histogram counts add up", sum(histogram(values)[1]), len(values))
+        fine = [30.0, 30.05, 30.1, 30.1, 30.34, 30.9]
+        check("finer figures get a finer bin", histogram(fine)[2], 0.02)
+        check("finer figures: counts add up, edge values in their own bin", (sum(histogram(fine, 0.1)[1]), histogram(fine, 0.1)[1][:4]), (6, [2, 2, 0, 1]))
+        check("whole numbers still use 1 ms", histogram([20, 21, 25])[2], 1.0)
 
         try:
             import numpy as np

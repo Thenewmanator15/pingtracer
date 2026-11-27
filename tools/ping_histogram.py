@@ -71,7 +71,10 @@ def figure_host(summary: Summary, pings: list[Ping], times: list[float | None], 
         seen.append(value)
         top.axvline(value, color=INK_2, linewidth=1, linestyle=(0, (4, 3)))
         # The label sits on a patch of the surface colour so a neighbouring line cannot cut through it.
-        top.text(value, max(counts) * (1.17 - 0.07 * level), f" {name} {ms(value)} ms", color=INK, fontsize=9, va="center", ha="left",
+        # A label near the right-hand edge sits to the left of its line so it is not cut off.
+        low_x, high_x = top.get_xlim()
+        on_right = value > low_x + 0.75 * (high_x - low_x)
+        top.text(value, max(counts) * (1.17 - 0.07 * level), f" {name} {ms(value)} ms ", color=INK, fontsize=9, va="center", ha="right" if on_right else "left",
                  bbox={"facecolor": SURFACE, "edgecolor": "none", "pad": 1.5}, zorder=5)
     if beyond:
         top.text(0.995, 0.5, f"{beyond} slower ping(s) not shown,\nup to {ms(s.maximum)} ms",

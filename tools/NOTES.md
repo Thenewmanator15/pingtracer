@@ -181,6 +181,58 @@ Checked on 27 November 2026 (`test_twampy_stats.py`):
 Limits: figures come from twampy's log, rounded to 0.01 ms. Between two answered probes
 the number lost each way is known, but not which individual probe went which way.
 
+### irtt, built and tried
+
+Checked on 27 November 2026. irtt's author publishes source only, no Windows program
+(its install page says: install Go, then build). Built here as version 0.9.2 with Go
+1.27.4 (unpacked in `G:\dev	ools\go`, not installed); the program is
+`dist	hird-party\irtt\irtt.exe`. Ubuntu and Debian carry irtt as a package.
+
+`irtt_stats.py` (in this folder) runs it, or reads a result it saved, and gives the same
+report, CSV and pictures as `twampy_stats.py`.
+
+    far machine:   irtt server
+    this machine:  py -3.15 irtt_stats.py FAR-IP --seconds 60 --interval 100 --plots
+
+Both tools over the same emulated link, one after the other (30 ms out, 80 ms back, 3%
+and 5% loss, same random seed, probes every 100 ms for 30 s):
+
+| | Set on the link | irtt 0.9.2 | twampy 1.3.2 |
+|---|---|---|---|
+| Lost on the way out | 13 | 13 | 13 |
+| Lost on the way back | 15 | 15 | 15 |
+| Way out, fastest / median | 30 | 30.48 / 32.50 ms | 30.46 / 30.86 ms |
+| Way back, fastest / median | 80 | 80.50 / 82.25 ms | 80.34 / 80.77 ms |
+| Jitter out / back | none set | 0.68 / 0.61 ms | 0.35 / 0.29 ms |
+
+- Losses: both exact. irtt marks every lost probe with its direction; twampy only gives
+  the count for each direction.
+- The fastest probes agree. irtt's medians read about 1.5 ms higher each way. Not
+  explained: with no emulated link in between irtt read a median of 0.34 ms out and
+  0.27 ms back, so irtt's own overhead does not cover it. Hypothesis, untested: the
+  emulator (a Python program that sleeps) held packets longer during the irtt run.
+- irtt saves every probe as JSON with all four time stamps from both a wall clock and a
+  steady clock, and does not clamp a negative delay to zero. `irtt_stats.py` says so
+  when a direction reads below zero.
+- `test_irtt_stats.py`: a made-up result with known contents, then a real run (149
+  probes, 10% loss each way): 19 lost out, 10 back, the emulator's count exactly.
+
+Not tested: two separate machines, an irtt server on the router.
+
+### Crusader, tried
+
+Checked on 27 November 2026. Free, open source (MIT or Apache-2.0), ready-made Windows
+program: <https://github.com/Zoxc/crusader>, version 0.3.2 (October 2024), unpacked in
+`dist	hird-party\crusader`. A different job from irtt: it loads the link with traffic
+(download, upload, both) and plots speed, latency up and down, and loss while loaded.
+`crusader test --idle` measures latency only.
+
+One run, both ends on this PC, latency only, 10 s: round trip 1.0 ms (0.4 down, 0.7
+up), 0% loss, picture saved as `distnalysis-demo\crusader-idle-demo.png`. It uses one
+port for both TCP and UDP, so the UDP-only emulator here cannot sit in between; its
+figures have not been checked against known delays. `crusader export` turns a result
+into JSON (not tried).
+
 Still to check:
 
 - [ ] irtt for OpenWrt 25.12. The OpenWrt package page refused an automated read.

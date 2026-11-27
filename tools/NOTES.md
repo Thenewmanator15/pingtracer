@@ -122,20 +122,42 @@ Still to check:
       OpenWrt. Adds a chosen delay, loss and jitter to a normal connection, giving a
       satellite-like link on the desk.
 
-## A fault found in PingTracer while testing
+## A fault found in PingTracer while testing, and fixed
 
-Closing PingTracer while it is pinging crashes it. Checked on 26 November 2026 by
-starting it pinging four hosts at 5 a second and closing the window normally:
+Closing PingTracer while it is pinging crashed it on the way out, with exit codes
+0xC0000005 (access violation) and 0xC0000374 (heap corruption), both inside Windows'
+ntdll. It was in the author's untouched 2.1 as well, so it did not come from the
+changes here.
 
-| Build | Closed while pinging | Closed while not pinging |
+**Cause, checked on 26 and 27 November 2026.** The process must not end while pings
+are still waiting for replies. A 40-line program with nothing of PingTracer in it,
+which starts 20 pings and exits, crashed 4 times in 5; the same program waiting for
+the replies first was clean 5 times in 5. Disposing the Ping objects, or suppressing
+their finalizers, before exiting did not help. A trace of PingTracer itself showed it
+exiting with 2 to 5 pings in flight.
+
+Why Windows or .NET crashes in that situation was not investigated; only the
+condition was pinned down.
+
+**Fix, in the modified build.** On close the app stops pinging, hides its windows at
+once, and closes for real when the last ping has completed. It gives up after the ping
+timeout plus two seconds.
+
+| Situation | Author's 2.1 | With the fix |
 |---|---|---|
-| The author's 2.1, untouched | crashed 5 times, hung once, of 6 | clean, 3 of 3 |
-| The modified build | crashed 4 of 4 | clean, 3 of 3 |
+| Closed by the X while pinging four hosts | crashed 5 of 6 | clean 10 of 10 |
+| Task Manager style close | crashed | clean 6 of 6 |
+| A host that never answers | crashed 1 of 4 | clean 4 of 4, exits when the timeout expires |
+| Closed during the startup route trace | clean 4 of 4 | clean 4 of 4 |
+| Stop, then close | clean 10 of 10 | clean 4 of 4 |
+| Closed without ever pinging | clean 3 of 3 | clean 4 of 4 |
 
-The exit codes were 0xC0000005 (access violation) and 0xC0000374 (heap corruption).
-So it was already there and is not caused by the changes. The cause has not been
-investigated. Built here against .NET Framework 4.7.2; the official download was not
-tested.
+A lesson from getting there: the first test of the fix "failed" because the script's
+way of closing the window looks to the app like a Task Manager close, which the first
+version of the fix skipped. Closing must be tested the way a person does it (the
+system menu's Close), not only with a bare close message.
+
+Built here against .NET Framework 4.7.2; the official download was not tested.
 ## Related things already found
 
 - ICMP can be rate-limited or given low priority by routers, so a ping shows how the

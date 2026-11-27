@@ -185,8 +185,8 @@ the number lost each way is known, but not which individual probe went which way
 
 Checked on 27 November 2026. irtt's author publishes source only, no Windows program
 (its install page says: install Go, then build). Built here as version 0.9.2 with Go
-1.27.4 (unpacked in `G:\dev	ools\go`, not installed); the program is
-`dist	hird-party\irtt\irtt.exe`. Ubuntu and Debian carry irtt as a package.
+1.27.4 (unpacked in `G:\dev\tools\go`, not installed); the program is
+`dist\third-party\irtt\irtt.exe`. Ubuntu and Debian carry irtt as a package.
 
 `irtt_stats.py` (in this folder) runs it, or reads a result it saved, and gives the same
 report, CSV and pictures as `twampy_stats.py`.
@@ -223,12 +223,12 @@ Not tested: two separate machines, an irtt server on the router.
 
 Checked on 27 November 2026. Free, open source (MIT or Apache-2.0), ready-made Windows
 program: <https://github.com/Zoxc/crusader>, version 0.3.2 (October 2024), unpacked in
-`dist	hird-party\crusader`. A different job from irtt: it loads the link with traffic
+`dist\third-party\crusader`. A different job from irtt: it loads the link with traffic
 (download, upload, both) and plots speed, latency up and down, and loss while loaded.
 `crusader test --idle` measures latency only.
 
 One run, both ends on this PC, latency only, 10 s: round trip 1.0 ms (0.4 down, 0.7
-up), 0% loss, picture saved as `distnalysis-demo\crusader-idle-demo.png`. It uses one
+up), 0% loss, picture saved as `dist\analysis-demo\crusader-idle-demo.png`. It uses one
 port for both TCP and UDP, so the UDP-only emulator here cannot sit in between; its
 figures have not been checked against known delays. `crusader export` turns a result
 into JSON (not tried).

@@ -118,10 +118,11 @@ def remove_slow_trend(t: np.ndarray, y: np.ndarray, window: float) -> np.ndarray
     edges = np.arange(t[0], t[-1] + window, window)
     if len(edges) < 3:
         return y - np.median(y)
-    which = np.clip(np.searchsorted(edges, t, side="right") - 1, 0, len(edges) - 2)
+    cuts = np.searchsorted(t, edges)                      # t is in order, so each stretch is one slice
+    cuts[-1] = len(t)
     centres, medians = [], []
     for block in range(len(edges) - 1):
-        inside = y[which == block]
+        inside = y[cuts[block]:cuts[block + 1]]
         if len(inside):
             centres.append((edges[block] + edges[block + 1]) / 2)
             medians.append(np.median(inside))
@@ -138,6 +139,44 @@ def folded_share(t: np.ndarray, y: np.ndarray, period: float, bins: int = 32) ->
     return 1 - left / (float(centred @ centred) / (len(y) - 1))
 
 
+FFT_ABOVE = 20000    # records longer than this many replies use the fast Fourier transform
+
+
+def spectrum_by_fft(t: np.ndarray, y: np.ndarray, interval: float, low: float, high: float, shuffles: int, rng):
+    """The same periodogram for a long record, by fast Fourier transform.
+
+    The pings are put on an even grid one ping interval apart (a lost ping leaves a gap at the average),
+    which is what makes the fast method possible; for evenly sent pings it gives the Lomb-Scargle result.
+    Each shuffle moves the values among the places that had a reply, so the gaps stay where they were.
+    Returns the frequencies, the power at each, the local background, and each shuffle's highest
+    power-over-background.
+    """
+    y = y - y.mean()
+    cell = np.round((t - t[0]) / interval).astype(np.int64)
+    size = int(cell[-1]) + 1
+    counts = np.bincount(cell, minlength=size)
+    occupied = counts > 0
+    padded = 1 << int(math.ceil(math.log2(2 * size)))      # twice the length: two points per natural peak width
+    every = np.fft.rfftfreq(padded, interval)
+    first, last = np.searchsorted(every, [1 / high, 1 / low])
+    frequencies = every[first:last + 1]
+    width = max(40, len(frequencies) // 25)
+
+    def power_of(values: np.ndarray) -> np.ndarray:
+        grid = np.bincount(cell, weights=values, minlength=size)
+        grid[occupied] /= counts[occupied]
+        found = np.fft.rfft(grid, padded)[first:last + 1]
+        return 2 * (found.real ** 2 + found.imag ** 2) / (int(occupied.sum()) * float(grid @ grid))
+
+    powers = power_of(y)
+    level = background(powers, width)
+    shuffled_ratio = np.empty(shuffles)
+    for k in range(shuffles):
+        shuffled = power_of(rng.permutation(y))
+        shuffled_ratio[k] = (shuffled / background(shuffled, width)).max()
+    return frequencies, powers, level, shuffled_ratio
+
+
 def find_rhythm(what: str, t: np.ndarray, y: np.ndarray, interval: float, min_period: float | None = None,
                 max_period: float | None = None, shuffles: int = 200, seed: int = 1) -> Rhythm:
     result = Rhythm(what)
@@ -151,16 +190,19 @@ def find_rhythm(what: str, t: np.ndarray, y: np.ndarray, interval: float, min_pe
     if np.ptp(y) == 0:
         result.reason = "no variation"
         return result
-    # Evenly spaced in frequency, four points per natural peak width; capped so a long record stays quick.
-    count = int(min(max(4 * span * (1 / low - 1 / high), 50), 6000))
-    frequencies = np.linspace(1 / high, 1 / low, count)
     rng = np.random.default_rng(seed)
-    shuffled = np.stack([rng.permutation(y) for _ in range(shuffles)], axis=1)
-    powers, shuffled_powers = lomb_scargle(t, y, frequencies, shuffled)
-    width = max(40, count // 25)
-    level = background(powers, width)
+    if len(t) > FFT_ABOVE:
+        frequencies, powers, level, shuffled_ratio = spectrum_by_fft(t, y, interval, low, high, shuffles, rng)
+    else:
+        # Evenly spaced in frequency, four points per natural peak width; capped so the sum stays quick.
+        count = int(min(max(4 * span * (1 / low - 1 / high), 50), 6000))
+        frequencies = np.linspace(1 / high, 1 / low, count)
+        shuffled = np.stack([rng.permutation(y) for _ in range(shuffles)], axis=1)
+        powers, shuffled_powers = lomb_scargle(t, y, frequencies, shuffled)
+        width = max(40, count // 25)
+        level = background(powers, width)
+        shuffled_ratio = (shuffled_powers / background(shuffled_powers, width)).max(axis=0)
     ratio = powers / level
-    shuffled_ratio = (shuffled_powers / background(shuffled_powers, width)).max(axis=0)
     best = int(ratio.argmax())
     result.tested = True
     result.strongest = result.period = 1 / frequencies[best]
@@ -179,8 +221,13 @@ def find_rhythm(what: str, t: np.ndarray, y: np.ndarray, interval: float, min_pe
     most = max(share for share, _ in explained.values())
     result.period = next(period for share, period in explained.values() if share >= 0.8 * most) if most > 0 else result.strongest
     result.chance = (1 + int((shuffled_ratio >= ratio[best]).sum())) / (shuffles + 1)
-    result.periods, result.powers = 1 / frequencies, powers
-    result.threshold = level * float(np.quantile(shuffled_ratio, 0.99))
+    threshold = level * float(np.quantile(shuffled_ratio, 0.99))
+    if len(frequencies) > 20000:                           # keep the tallest of each group, enough for a picture
+        group = -(-len(frequencies) // 20000)
+        starts = np.arange(0, len(frequencies), group)
+        tallest = starts + np.array([int(powers[s:s + group].argmax()) for s in starts])
+        frequencies, powers, threshold = frequencies[tallest], powers[tallest], threshold[tallest]
+    result.periods, result.powers, result.threshold = 1 / frequencies, powers, threshold
     if result.chance >= SURE:
         result.period = result.strongest
     return result
@@ -271,8 +318,9 @@ def baseline_steps(t: np.ndarray, y: np.ndarray, interval: float, block_seconds:
     if len(t) < 50:
         return result
     which = ((t - t[0]) // result.block_seconds).astype(int)
-    blocks = np.unique(which)
-    floor = np.array([y[which == b].min() for b in blocks])
+    starts = np.concatenate(([0], np.flatnonzero(np.diff(which)) + 1))     # t is in order: each block is one slice
+    blocks = which[starts]
+    floor = np.minimum.reduceat(y, starts)
     times = (blocks + 0.5) * result.block_seconds
     result.times, result.floor = times, floor
     if len(floor) < 2 * min_blocks:
@@ -307,7 +355,7 @@ def baseline_steps(t: np.ndarray, y: np.ndarray, interval: float, block_seconds:
 
     cuts = [0] + split(0, len(floor)) + [len(floor)]
     for a, b in zip(cuts[:-1], cuts[1:]):
-        result.levels.append((float(a * result.block_seconds), float(b * result.block_seconds), float(np.median(floor[a:b]))))
+        result.levels.append((float(blocks[a] * result.block_seconds), float((blocks[b - 1] + 1) * result.block_seconds), float(np.median(floor[a:b]))))
     for (_, end, before), (_, _, after) in zip(result.levels[:-1], result.levels[1:]):
         result.steps.append(Step(end, before, after))
     return result

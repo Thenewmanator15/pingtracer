@@ -285,6 +285,25 @@ Limits, as measured or known:
   is a made-up record with a rhythm, steps, clumped loss and a second level planted,
   for seeing what the pictures look like when something is there.
 
+### Large recordings
+
+Timed on 27 November 2026 on this PC, on made-up recordings at 5 pings a second with a
+15 s rhythm, two steps and clumped loss planted (file sizes 9 MB and 88 MB):
+
+| Script | 100,000 pings (5.5 hours) | 1,000,000 pings (55 hours) | Peak memory at 1,000,000 |
+|---|---|---|---|
+| `ping_report.py` | 1.3 s | 10.8 s | 0.4 GB |
+| `ping_histogram.py` | not timed | 12.4 s | 0.5 GB |
+| `ping_spikes.py` | not timed | 10.2 s | 0.4 GB |
+| `ping_deep.py` | 9.6 s (was 54 s) | 99 s | 0.6 GB |
+
+The planted rhythm (15.0 s) and steps (+6.00, -3.00 ms) came back the same at both
+sizes. To get there, `ping_deep.py` uses the fast Fourier transform for records over
+20,000 replies; a test checks it against the direct sum on the same record (same repeat
+time, share of variation 0.27% against 0.28%). The whole file is held in memory, so
+about 0.5 GB per million pings. Not tried beyond a million, and not on a file with
+several hosts of that size (memory then adds up across hosts).
+
 Still to check:
 
 - [ ] irtt for OpenWrt 25.12. The OpenWrt package page refused an automated read.

@@ -47,6 +47,21 @@ def test_rhythm() -> None:
     r = deep.find_rhythm("delay", t, smooth, interval)
     check("planted 42 s swing is found", r.found and abs(r.period - 42.0) < 1.5, f"repeats every {r.period:.2f} s (set 42), chance {r.chance:.3f}")
 
+    # Long records use the fast Fourier transform instead.  Same record, both ways:
+    y15 = bursty_noise(np.random.default_rng(21), n)
+    y15[(t % 15.0) < 0.6] += 6.0
+    y15[np.random.default_rng(22).random(n) < 0.03] = np.nan                  # 3% lost
+    kept = ~np.isnan(y15)
+    slow = deep.find_rhythm("delay", t[kept], y15[kept], interval)
+    usual, deep.FFT_ABOVE = deep.FFT_ABOVE, 100
+    try:
+        fast = deep.find_rhythm("delay", t[kept], y15[kept], interval)
+    finally:
+        deep.FFT_ABOVE = usual
+    check("fast method agrees with the direct one", fast.found and slow.found and abs(fast.period - slow.period) < 0.05
+          and abs(fast.power - slow.power) < 0.15 * slow.power,
+          f"repeat {fast.period:.2f} s against {slow.period:.2f} s; share of variation {100 * fast.power:.2f}% against {100 * slow.power:.2f}%")
+
     false_alarms = 0
     runs = 20
     for seed in range(runs):

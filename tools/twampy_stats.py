@@ -46,7 +46,13 @@ from ping_export import duration_text, read_export, summarise
 from ping_report import report
 
 TIME_FORMAT = "%Y-%m-%d %H:%M:%S.%f"
-DEFAULT_TWAMPY_SRC = Path(__file__).resolve().parent.parent / "dist" / "third-party" / "twampy" / "src"
+def _first_existing(*candidates: Path) -> Path:
+    """The tool beside the scripts (the link-test-tools folder layout) if it is there, else in dist/third-party."""
+    return next((c for c in candidates if c.exists()), candidates[-1])
+
+
+_HERE = Path(__file__).resolve().parent
+DEFAULT_TWAMPY_SRC = _first_existing(_HERE.parent / "twampy" / "src", _HERE.parent / "dist" / "third-party" / "twampy" / "src")
 STAMP = r"(\d\d/\d\d/\d\d \d\d:\d\d:\d\d),(\d+)\s+INFO\s+"
 SENT_LINE = re.compile(STAMP + r"Sent to (\S+) \[sseq=(\d+)\]")
 REPLY_LINE = re.compile(STAMP + r"Reply from (\S+) \[rseq=(\d+) sseq=(\d+) rtt=([\d.]+)ms outbound=([\d.]+)ms inbound=([\d.]+)ms\]")

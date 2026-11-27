@@ -41,7 +41,13 @@ from pathlib import Path
 from ping_export import percentile
 from twampy_stats import ANSWERED, LOST_BACK, LOST_OUT, LOST_UNKNOWN, Probe, statistics, write_csv
 
-DEFAULT_IRTT = Path(__file__).resolve().parent.parent / "dist" / "third-party" / "irtt" / "irtt.exe"
+def _first_existing(*candidates: Path) -> Path:
+    """The tool beside the scripts (the link-test-tools folder layout) if it is there, else in dist/third-party."""
+    return next((c for c in candidates if c.exists()), candidates[-1])
+
+
+_HERE = Path(__file__).resolve().parent
+DEFAULT_IRTT = _first_existing(_HERE.parent / "irtt" / "irtt.exe", _HERE.parent / "dist" / "third-party" / "irtt" / "irtt.exe")
 FATES = {"false": ANSWERED, "true_up": LOST_OUT, "true_down": LOST_BACK, "true": LOST_UNKNOWN}
 
 

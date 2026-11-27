@@ -34,6 +34,14 @@ namespace PingTracer
 		/// What the payload is filled with, as a <see cref="PingTracer.Util.PingPayloadPattern"/> value.  Set from the current configuration.
 		/// </summary>
 		private volatile int pingPayloadPattern = 0;
+		/// <summary>
+		/// The number of pings which have been sent and have not yet completed.  The program must not exit while this is above zero; see <see cref="MainForm_FormClosing"/>.
+		/// </summary>
+		private int pingsInFlight = 0;
+		/// <summary>
+		/// True once the window has been hidden and the program is waiting for outstanding pings to finish before it closes.
+		/// </summary>
+		private bool closingWhenIdle = false;
 
 		private long successfulPings = 0;
 		private long failedPings = 0;
@@ -579,7 +587,17 @@ namespace PingTracer
 									object[] state = new object[] { null, offset, graph, targetMapping.Key, targetMapping.Value, pinger, null, buffer, bufferSeed, (byte)bufferPattern };
 									state[0] = PingTracer.Util.PreciseClock.Now;
 									state[6] = PingTracer.Util.PreciseClock.Timestamp;
-									pinger.SendAsync(targetMapping.Value, pingTimeoutMs, buffer, state);
+									Interlocked.Increment(ref pingsInFlight);
+									try
+									{
+										pinger.SendAsync(targetMapping.Value, pingTimeoutMs, buffer, state);
+									}
+									catch
+									{
+										// Nothing was sent, so no completion will arrive to count it back down.
+										Interlocked.Decrement(ref pingsInFlight);
+										throw;
+									}
 								}
 							}
 						}
@@ -689,6 +707,7 @@ namespace PingTracer
 			}
 			finally
 			{
+				Interlocked.Decrement(ref pingsInFlight);
 				UpdatePingCounts(Interlocked.Read(ref successfulPings), Interlocked.Read(ref failedPings));
 			}
 		}
@@ -836,6 +855,42 @@ namespace PingTracer
 				outputLogForm.Dispose();
 				outputLogForm = null;
 			}
+
+			// If the process ends while pings are still awaiting replies, it crashes in native code on the way out
+			// (access violation or heap corruption in ntdll).  A program which does nothing but start pings and exit
+			// does the same, and the only thing that prevents it is letting the pings finish.  They cannot be aborted,
+			// so the window is hidden at once and the program closes as soon as the last ping has completed.
+			// Windows shutting down is the one case where holding the close back is not acceptable.
+			bool mayWait = e.CloseReason != CloseReason.WindowsShutDown;
+			if (mayWait && !closingWhenIdle && PingsAreOutstanding())
+			{
+				e.Cancel = true;
+				closingWhenIdle = true;
+				foreach (Form form in Application.OpenForms.Cast<Form>().ToArray())
+					form.Hide();
+				// No ping can still be outstanding after its timeout; the margin covers the traceroute's current hop.
+				DateTime giveUpAt = DateTime.UtcNow.AddMilliseconds(pingTimeoutMs + 2000);
+				System.Windows.Forms.Timer closeTimer = new System.Windows.Forms.Timer();
+				closeTimer.Interval = 50;
+				closeTimer.Tick += (sender2, e2) =>
+				{
+					if (!PingsAreOutstanding() || DateTime.UtcNow >= giveUpAt)
+					{
+						closeTimer.Stop();
+						closeTimer.Dispose();
+						this.Close();
+					}
+				};
+				closeTimer.Start();
+			}
+		}
+
+		/// <summary>
+		/// Returns true if any ping has been sent and has not yet completed, or the worker which sends them is still running.
+		/// </summary>
+		private bool PingsAreOutstanding()
+		{
+			return Volatile.Read(ref pingsInFlight) > 0 || (controllerWorker != null && controllerWorker.IsBusy);
 		}
 
 		void panelForm_FormClosing(object sender, FormClosingEventArgs e)

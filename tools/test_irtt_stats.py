@@ -75,16 +75,20 @@ def test_real_irtt_over_relay() -> bool:
     fates = [p.fate for p in probes]
     assert len(probes) >= 140, len(probes)
     # The relay also carries irtt's opening and closing packets, which it may lose too, so its counts can
-    # exceed the probes lost by those few; with none of them lost the counts are equal.
-    assert 0 <= relay.counts["out_lost"] - fates.count(LOST_OUT) <= 2, (relay.counts, fates.count(LOST_OUT))
-    assert 0 <= relay.counts["back_lost"] - fates.count(LOST_BACK) <= 2, (relay.counts, fates.count(LOST_BACK))
-    assert fates.count(LOST_UNKNOWN) == 0
+    # exceed the probes lost by those few.  irtt cannot name the direction for a probe lost right at the
+    # end of the test (seen in one run here); such a probe is "direction unknown" and may belong to either.
+    unknown = fates.count(LOST_UNKNOWN)
+    assert unknown <= 2, unknown
+    assert -unknown <= relay.counts["out_lost"] - fates.count(LOST_OUT) <= 2 + unknown, (relay.counts, fates.count(LOST_OUT))
+    assert -unknown <= relay.counts["back_lost"] - fates.count(LOST_BACK) <= 2 + unknown, (relay.counts, fates.count(LOST_BACK))
+    lost = fates.count(LOST_OUT) + fates.count(LOST_BACK) + unknown
+    assert 0 <= relay.counts["out_lost"] + relay.counts["back_lost"] - lost <= 2, (relay.counts, lost)
     answered = [p for p in probes if p.fate == ANSWERED]
     out, back = percentile([p.outbound_ms for p in answered], 0.5), percentile([p.inbound_ms for p in answered], 0.5)
     assert 30 <= out <= 36, out
     assert 80 <= back <= 86, back
     print(f"  real irtt run: {len(probes)} probes, lost {fates.count(LOST_OUT)} out / {fates.count(LOST_BACK)} back "
-          f"(relay {relay.counts['out_lost']} / {relay.counts['back_lost']}), medians {out:.2f} / {back:.2f} ms")
+          f"/ {unknown} unknown (relay {relay.counts['out_lost']} / {relay.counts['back_lost']}), medians {out:.2f} / {back:.2f} ms")
     return True
 
 

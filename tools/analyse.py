@@ -3,7 +3,7 @@
 
 Give it a file and it works out which tool made it:
 
-    PingTracer CSV export        report, a histogram per host, the spike picture
+    PingTracer CSV export        report, a histogram per host, the spike picture, the deeper analysis
     irtt result (.json)          the same, for the way out, the way back and the round trip
     Crusader result (.crr/.json) the same
     twampy verbose log (.log)    the same
@@ -44,23 +44,30 @@ def kind_of(path: Path) -> str:
 def analyse(path: Path, extra: list[str]) -> int:
     kind = kind_of(path)
     print(f"{path.name}: {kind} result\n")
+    import ping_deep
+    saved = path.with_suffix(".csv")
     if kind == "irtt":
         import irtt_stats
-        return irtt_stats.main(["--from-json", str(path), "--csv", str(path.with_suffix(".csv")), "--plots", *extra])
-    if kind == "crusader":
+        code = irtt_stats.main(["--from-json", str(path), "--csv", str(saved), "--plots", *extra])
+    elif kind == "crusader":
         import crusader_stats
-        return crusader_stats.main([str(path), "--plots", *extra])
-    if kind == "twampy":
+        code = crusader_stats.main([str(path), "--plots", *extra])
+    elif kind == "twampy":
         import twampy_stats
-        return twampy_stats.main(["--from-log", str(path), "--csv", str(path.with_suffix(".csv")), "--plots", *extra])
-    import ping_histogram
-    import ping_report
-    import ping_spikes
-    for script in (ping_report, ping_histogram, ping_spikes):
-        code = script.main([str(path)])
-        if code:
-            return code
-    return 0
+        code = twampy_stats.main(["--from-log", str(path), "--csv", str(saved), "--plots", *extra])
+    else:
+        import ping_histogram
+        import ping_report
+        import ping_spikes
+        code = 0
+        for script in (ping_report, ping_histogram, ping_spikes):
+            code = code or script.main([str(path)])
+    if code:
+        return code
+    print()
+    print("Deeper analysis (rhythm, loss bursts, baseline steps, stability, delay levels):")
+    print()
+    return ping_deep.main([str(saved)])
 
 
 def main(argv: list[str] | None = None) -> int:

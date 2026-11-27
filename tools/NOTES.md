@@ -233,6 +233,58 @@ port for both TCP and UDP, so the UDP-only emulator here cannot sit in between; 
 figures have not been checked against known delays. `crusader export` turns a result
 into JSON (not tried).
 
+### Deeper analysis: ping_deep.py
+
+Added 27 November 2026, for links that change over time (a satellite-type link is the
+case in mind). Five measurements per host, each with a figure for how sure it is. It
+reads a PingTracer export and the CSVs the irtt, twampy and Crusader scripts save;
+`analyse.py` runs it after the ordinary report.
+
+    py -3.15 ping_deep.py export.csv
+
+| Measurement | Method | What a positive result looks like |
+|---|---|---|
+| Rhythm | Lomb-Scargle periodogram; each peak judged against its local background, and against 200 shuffled copies of the record; repeat time found by folding | "repeats every 15.0 s, chance in shuffled data less than 1 in 200" |
+| Loss bursts | Two-state (Gilbert) model and a runs test | "after a lost ping the next is lost 73% of the time, overall 3.4%" |
+| Baseline steps | Fastest ping in each 2 s block, split by binary segmentation | "+6.01 ms at 7 min 28 s" |
+| Stability | Overlapping Allan deviation | "steadiest averaged over 13 s; wanders beyond that" |
+| Delay levels | Peaks of the smoothed distribution | "3 levels: 39 ms (49%), 45 ms (37%), 54 ms (14%)" |
+
+Checked (`test_ping_deep.py`, all pass):
+
+- Made-up records with known contents: a 0.6 s bump every 15 s reported as 15.00 s; a
+  smooth 42 s swing as 41.98 s; loss made with bursts averaging 4 pings measured at
+  4.06; steps of +6 and -3 ms found at the right times as +5.99 and -2.97; two delay
+  levels at 70% / 30% found as 70% / 30%.
+- False alarms, 20 made-up records each with nothing planted: 0 rhythms in bursty noise,
+  0 clumped verdicts on independent loss, 0 steps on a level record. Whole-millisecond
+  data (Windows ping) is not read as steps or as many levels.
+- Against published packages (Astropy 8.0.3, AllanTools 2024.06, SciPy 1.18.1, installed
+  into Python 3.15 that day): the periodogram equals Astropy's to 1e-15, the Allan
+  deviation equals AllanTools' to 1e-15, the runs-test chance equals SciPy's normal tail.
+
+On the real 15-minute recording (`dist/analysis-demo/long-export.csv`, home network,
+not a satellite link): no loss, no baseline steps, one delay level per host. One rhythm
+out of eight tests passed, on the provider's first hop: 0.4% of the variation, strongest
+at 1.6 s. With eight tests at 1 in 200 each, one false pass has about a 4% chance, so
+this is weak. Not followed up.
+
+Limits, as measured or known:
+
+- A rhythm "found" means a narrow peak that shuffled data does not produce. It says
+  something repeats, not what. Repeat times tested run from 1 s to an eighth of the
+  record (at most 300 s) unless set otherwise.
+- The delay-levels count depends on a rule (a dip to half the lower peak separates two
+  levels). On the made-up satellite-like record it reported 3 levels where 6 were
+  planted close together.
+- Stability fills lost pings in with straight lines, and says how many.
+- irtt named the direction of every lost probe in most runs; in one run a probe lost at
+  the very end came back as "direction unknown". `irtt_stats.py` also prints irtt's
+  count of out-of-order replies and duplicates (0 and 0 over the emulator).
+- Never run on a real satellite link. `dist/analysis-demo/made-up-satellite-like.csv`
+  is a made-up record with a rhythm, steps, clumped loss and a second level planted,
+  for seeing what the pictures look like when something is there.
+
 Still to check:
 
 - [ ] irtt for OpenWrt 25.12. The OpenWrt package page refused an automated read.

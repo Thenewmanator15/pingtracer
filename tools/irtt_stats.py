@@ -118,6 +118,11 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     write_csv(probes, far_end, csv_path)
     print(statistics(probes, far_end, csv_path, args.min_outage))
+    totals = result.get("stats", {})
+    if "late_packets" in totals or "duplicates" in totals:
+        print()
+        print(f"Out of order: {totals.get('late_packets', 0)} reply/replies arrived after a later one "
+              f"({totals.get('late_packets_percent', 0):.2f}%).  Duplicates: {totals.get('duplicates', 0)} ({totals.get('duplicate_percent', 0):.2f}%).")
     note = clock_note(probes)
     if note:
         print("\n" + note)

@@ -112,9 +112,55 @@ Checked against each project's own page on 26 November 2026, except where marked
 TWAMP itself is an internet standard: RFC 5357, "A Two-Way Active Measurement Protocol
 (TWAMP)", <https://www.rfc-editor.org/rfc/rfc5357>.
 
+### twampy tried here, 27 November 2026
+
+Downloaded from <https://github.com/nokia/twampy> (version 1.3.2, commit 885b986, 5 March
+2026) into `dist\third-party\twampy`. Its code was read first: one file, standard
+library sockets only. It ran on Python 3.15 without being installed.
+
+Both ends were run on this PC with `udp_delay_relay.py` (in this folder) between them,
+holding packets for a known time each way and losing a known share. Our own
+`ping_twoway.py` was run over the same relay for comparison. 100 probes each.
+
+| Set on the relay | twampy: out / back | ping_twoway: out / back | Loss reported |
+|---|---|---|---|
+| nothing | 0.40 / 0.28 ms | 1.76 / 1.47 ms | none, both |
+| 30 ms out, 80 ms back | 30.8 / 80.8 ms | 32.3 / 82.2 ms | none, both |
+| 80 ms out, 30 ms back | 80.7 / 30.7 ms | 82.6 / 32.6 ms | none, both |
+| 30/80 ms, 21 lost on the way out | 31.3 / 81.1 ms | 32.6 / 82.4 ms | both: 21 out, 0 back |
+| 30/80 ms, 18 lost on the way back | 31.2 / 81.0 ms | 32.6 / 82.3 ms | both: 0 out, 18 back |
+
+Both tools put the delay and the loss in the right direction every time.
+
+ping_twoway reads about 1.3 ms higher each way in this table. That is the test
+arrangement, not the tool: its sender, reflector and the relay all ran inside one
+Python process and took turns, while twampy's two ends were separate processes. Run
+directly with no relay, ping_twoway measured 0.4 / 0.2 ms and twampy 0.11 / 0.10 ms.
+
+Things to know about twampy, from reading its code:
+
+- It never reports a negative delay: anything below zero is shown as zero. With two
+  machines whose clocks disagree, one direction can read 0 and so hide the clock error.
+  Its own README example shows an inbound of 0. ping_twoway prints the raw figure and
+  an estimate of the clock difference.
+- Jitter is the smoothed kind from RFC 1889, not the plain mean change used by
+  PingTracer and the scripts here, so the two jitter figures are not comparable.
+- The reflector stamps arrival and departure with the same reading.
+- It prints a summary table. Per-probe figures only appear as log lines in verbose
+  mode; there is no CSV. To use the histogram and spike scripts on a twampy run, those
+  log lines would need converting.
+- Probe interval is 100 ms or more, at most 9,999 probes per run.
+
+To run it from the download without installing, from inside its `src` folder
+(responder on the far machine, sender here; the addresses are far end, then near end):
+
+    python -m twampy responder :20001
+    python -m twampy sender FAR-IP:20001 :20000 -c 600 -i 100
+
+Not checked: two separate machines.
+
 Still to check:
 
-- [ ] twampy on Python 3.15 (its page says tested to 3.14).
 - [ ] irtt for OpenWrt 25.12. The OpenWrt package page refused an automated read.
 - [ ] **Scapy** and **ntplib** (from memory): Scapy builds the ICMP timestamp request
       but needs administrator rights; ntplib measures how far apart two clocks are.

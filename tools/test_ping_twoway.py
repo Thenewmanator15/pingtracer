@@ -100,6 +100,31 @@ def run(checks: Checks) -> None:
     checks.near("round trip does not change", ping_twoway.median([corrected.round_trip_ms(p) for p in done]), medians(held)[2], 0.001)
     checks.near("symmetric-path clock estimate is half the injected difference (30 vs 80 -> -25)", held.symmetric_clock_offset_ms(), -25, TOLERANCE_MS)
 
+    print(" through the delaying relay (udp_delay_relay.py): 30 ms out, 80 ms back")
+    from udp_delay_relay import Relay
+    reflector = ping_twoway.Reflector("127.0.0.1", 0).start()
+    relay = Relay(0, ("127.0.0.1", reflector.port), out_ms=30, back_ms=80).start()
+    try:
+        relayed = ping_twoway.send("127.0.0.1", relay.port, count=40, rate=20.0, timeout=1.0)
+    finally:
+        relay.stop()
+        reflector.stop()
+    forward, backward, _ = medians(relayed)
+    checks.check("every probe answered through the relay", relayed.answered == 40, f"{relayed.answered} of 40")
+    checks.near("forward", forward, 30, 8)
+    checks.near("backward", backward, 80, 8)
+
+    print(" the relay losing every packet on the way back")
+    reflector = ping_twoway.Reflector("127.0.0.1", 0).start()
+    relay = Relay(0, ("127.0.0.1", reflector.port), back_loss=1.0).start()
+    try:
+        cut = ping_twoway.send("127.0.0.1", relay.port, count=10, rate=50.0, timeout=0.5)
+    finally:
+        relay.stop()
+        reflector.stop()
+    checks.check("nothing answered, and the relay counted 10 on the way out", cut.answered == 0 and relay.counts["out"] >= 10,
+                 f"answered {cut.answered}, relay saw {relay.counts['out']} out and dropped {relay.counts['back_lost']} back")
+
     print(" nothing listening")
     silent = ping_twoway.send("127.0.0.1", 9, count=5, rate=50, timeout=0.3)
     checks.check("no replies, and all counted as lost on the way out", (silent.answered, silent.lost_forward) == (0, 5))

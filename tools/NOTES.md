@@ -335,6 +335,25 @@ Administrator ("privileges are required"; its no-privilege mode says "not suppor
 test-trippy.cmd asks for Administrator and runs all three at once; it has not been run, and nothing reads its
 JSON yet. Its release has no published checksum to compare the download against.
 
+## Noted for later: StarTrinity's testers (28 November 2026)
+
+Mathew asked for a note of these. Read from StarTrinity's own pages; nothing downloaded or tried.
+His point: a test that sends real VoIP messages is treated by the network as VoIP, so that is what to send.
+
+- StarTrinity SIP Tester: places real calls (SIP set-up and RTP voice) and scores each one (G.107 MOS and R,
+  jitter, loss). Windows. Not open source. Free version with limits: its FAQ gives 150 attempted and received
+  calls and 50 at once, dated March 2015; paid version differs only in those limits. Whether the limits are
+  per run or in total, and whether they still hold, is not checked.
+  https://startrinity.com/VoIP/SipTester/SipTester.aspx
+- StarTrinity Multiprotocol Network Tester: its page calls it "freeware, open source". Windows and Linux,
+  run on both machines. Sends UDP streams sized like G.711 calls and reports loss, jitter and G.107 MOS.
+  From its page these are plain UDP streams, not real call set-up, so a network that looks for real VoIP
+  messages may not recognise them. Where its source code and licence are published is not found.
+  https://startrinity.com/VoIP/NetworkTester/NetworkTester.aspx
+- Other real-call option, free and open source: pjsua (PJSIP project), a command-line phone; no ready
+  Windows download, would need building.
+- voip_score.py here sends a call-shaped stream, not real VoIP messages.
+
 Still to check:
 
 - [ ] irtt for OpenWrt 25.12. The OpenWrt package page refused an automated read.

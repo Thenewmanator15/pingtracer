@@ -72,11 +72,14 @@ def read_result(result: dict) -> tuple[list[Probe], str]:
     return probes, far_end
 
 
-def run_irtt(far_end: str, seconds: float, interval_ms: float, irtt: Path, json_path: Path) -> dict:
-    """Runs irtt's client, saving its result to json_path, and returns that result."""
+def run_irtt(far_end: str, seconds: float, interval_ms: float, irtt: Path, json_path: Path, length: int = 0) -> dict:
+    """Runs irtt's client, saving its result to json_path, and returns that result.
+
+    length is the size of each packet's contents in bytes; 0 leaves it to irtt.
+    """
     if not Path(irtt).exists():
         raise SystemExit(f"irtt was not found at {irtt}. Give its path with --irtt.")
-    command = [str(irtt), "client", "-Q", "-i", f"{interval_ms:g}ms", "-d", f"{seconds:g}s", "-o", str(json_path), far_end]
+    command = [str(irtt), "client", "-Q", "-i", f"{interval_ms:g}ms", "-d", f"{seconds:g}s", "-l", str(length), "-o", str(json_path), far_end]
     done = subprocess.run(command, capture_output=True, text=True, encoding="utf-8", errors="replace")
     if done.returncode != 0 or not json_path.exists():
         raise SystemExit(f"irtt did not finish: {(done.stderr or done.stdout).strip()}")

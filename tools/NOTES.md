@@ -304,6 +304,37 @@ time, share of variation 0.27% against 0.28%). The whole file is held in memory,
 about 0.5 GB per million pings. Not tried beyond a million, and not on a file with
 several hosts of that size (memory then adds up across hosts).
 
+## Call quality: voip_score.py
+
+Sends a stream shaped like a phone call with irtt (a 172-byte packet every 20 ms: 160 bytes of G.711 speech
+and a 12-byte RTP header) and scores each direction with the simplified E-model: R (0 to 100) and MOS (1 to 4.5).
+
+- Checked: the form R = Ro - Id - Ie,eff, the MOS formula, and Bpl = 4.3 for G.711 (the default in the ITU's
+  own online E-model calculator); MOS 4.41 for R 93.2. Sources: ITU E-model tutorial and calculator pages.
+- Not checked against the ITU text: the delay term. It is Cole and Rosenbluth's short form
+  (0.024 d + 0.11 (d - 177.3) above 177.3 ms), widely quoted, not the ITU's full formula. The ITU's online
+  calculator would settle it; it has not been used.
+- From memory, not checked: Bpl = 25.1 for G.711 with loss concealment; the wording of the bands below R 80.
+- Assumed, because a ping-like test cannot see it: the receiving phone's buffer (the best one is picked unless
+  given), echo fully cancelled, one-way delay = half the fastest round trip unless --trust-clocks.
+- Measured on this PC (28 November 2026), irtt through the relay: 30 ms out, 80 ms back, 2% and 4% loss set;
+  lost 16 out and 44 back, the same as the relay's own count; delays read 30.28 and 80.28 ms.
+- Measured: this PC to itself scores R 92.6 (MOS 4.40). A made-up link of 270 ms each way with 0.5% and 1% loss
+  scores R 57.9 and 53.4; about 21 of the points lost are delay alone.
+- Found: irtt's server on Windows stops at the first call-sized packet when started as `irtt server -b 127.0.0.1:port`.
+  Tied to the loopback address it sizes its buffer from that interface's packet limit, which Windows gives as
+  4294967295. Started plainly (`irtt server`, as far-end-irtt.cmd does) it works.
+- Not done: a marked ("this is voice") stream. Windows ignores a program's request to mark packets
+  (Microsoft: "Deprecating old QoS APIs"); it needs an Administrator QoS policy. irtt's Windows server also
+  answers "no IPv4 DSCP support available". Never run across two machines or a real link.
+
+## Other protocols: Trippy
+
+Trippy 0.13.0 (Apache-2.0) probes with ping, UDP or TCP. Measured: on Windows it refuses to run without
+Administrator ("privileges are required"; its no-privilege mode says "not supported on this platform").
+test-trippy.cmd asks for Administrator and runs all three at once; it has not been run, and nothing reads its
+JSON yet. Its release has no published checksum to compare the download against.
+
 Still to check:
 
 - [ ] irtt for OpenWrt 25.12. The OpenWrt package page refused an automated read.
